@@ -137,7 +137,6 @@ end)
 
 if not shared.VapeIndependent then
 	loadstring(downloadFile('unreal/games/universal.lua'), 'universal')()
-	loadstring(downloadFile('unreal/games/modules.lua'), 'modules')()
 
 	if isfile('unreal/games/'..game.PlaceId..'.lua') then
 		loadstring(readfile('unreal/games/'..game.PlaceId..'.lua'), tostring(game.PlaceId))(...)
