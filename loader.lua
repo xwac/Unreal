@@ -11,7 +11,7 @@ end
 local function downloadFile(path, func)
 	if not isfile(path) then
 		local suc, res = pcall(function()
-			return game:HttpGet('https://raw.githubusercontent.com/xwac/Unreal/'..readfile('unreal/profiles/commit.txt')..'/'..select(1, path:gsub('unreal/', '')), true)
+			return game:HttpGet('https://raw.githubusercontent.com/xwac/Unreal/'..readfile('unreal/profiles/commit.txt')..'/'..select(1, path:gsub('unreal/', ''))..'?v='..tick(), true)
 		end)
 		if not suc or res == '404: Not Found' then
 			error(res)
@@ -42,12 +42,12 @@ end
 
 if not shared.VapeDeveloper then
 	local _, subbed = pcall(function() 
-		return game:HttpGet('https://github.com/xwac/Unreal') 
+		return game:HttpGet('https://github.com/xwac/Unreal?ref='..tick()) 
 	end)
 	local commit = subbed:find('currentOid')
 	commit = commit and subbed:sub(commit + 13, commit + 52) or nil
 	commit = commit and #commit == 40 and commit or 'main'
-	if commit == 'main' or (isfile('unreal/profiles/commit.txt') and readfile('unreal/profiles/commit.txt') or '') ~= commit then
+	if true or commit == 'main' or (isfile('unreal/profiles/commit.txt') and readfile('unreal/profiles/commit.txt') or '') ~= commit then
 		wipeFolder('unreal')
 		wipeFolder('unreal/games')
 		wipeFolder('unreal/guis')
@@ -56,4 +56,5 @@ if not shared.VapeDeveloper then
 	writefile('unreal/profiles/commit.txt', commit)
 end
 
-return loadstring(downloadFile('unreal/main.lua'), 'main')()
+local main = loadstring(downloadFile('unreal/main.lua'), 'main')
+if main then return main() end

@@ -30,7 +30,7 @@ local playersService = cloneref(game:GetService('Players'))
 local function downloadFile(path, func)
 	if not isfile(path) then
 		local suc, res = pcall(function()
-			return game:HttpGet('https://raw.githubusercontent.com/xwac/Unreal/'..readfile('unreal/profiles/commit.txt')..'/'..select(1, path:gsub('unreal/', '')), true)
+			return game:HttpGet('https://raw.githubusercontent.com/xwac/Unreal/'..readfile('unreal/profiles/commit.txt')..'/'..select(1, path:gsub('unreal/', ''))..'?v='..tick(), true)
 		end)
 		if not suc or res == '404: Not Found' then
 			error(res)
@@ -65,7 +65,7 @@ local function finishLoading()
 				if shared.VapeDeveloper then
 					loadstring(readfile('unreal/loader.lua'), 'loader')()
 				else
-					loadstring(game:HttpGet('https://raw.githubusercontent.com/xwac/Unreal/'..readfile('unreal/profiles/commit.txt')..'/loader.lua', true), 'loader')()
+					loadstring(game:HttpGet('https://raw.githubusercontent.com/xwac/Unreal/'..readfile('unreal/profiles/commit.txt')..'/loader.lua?v='..tick(), true), 'loader')()
 				end
 			]]
 			if shared.VapeDeveloper then
@@ -139,15 +139,19 @@ if not shared.VapeIndependent then
 	loadstring(downloadFile('unreal/games/universal.lua'), 'universal')()
 
 	if isfile('unreal/games/'..game.PlaceId..'.lua') then
-		loadstring(readfile('unreal/games/'..game.PlaceId..'.lua'), tostring(game.PlaceId))(...)
+		local gameFn = loadstring(readfile('unreal/games/'..game.PlaceId..'.lua'), tostring(game.PlaceId))
+		if gameFn then gameFn() end
 	else
 		if not shared.VapeDeveloper then
 			local suc, res = pcall(function()
-				return game:HttpGet('https://raw.githubusercontent.com/xwac/Unreal/'..readfile('unreal/profiles/commit.txt')..'/games/'..game.PlaceId..'.lua', true)
+				return game:HttpGet('https://raw.githubusercontent.com/xwac/Unreal/'..readfile('unreal/profiles/commit.txt')..'/games/'..game.PlaceId..'.lua?v='..tick(), true)
 			end)
 			if suc and res ~= '404: Not Found' then
-				loadstring(downloadFile('unreal/games/'..game.PlaceId..'.lua'), tostring(game.PlaceId))(...)
+				local gameFn = loadstring(downloadFile('unreal/games/'..game.PlaceId..'.lua'), tostring(game.PlaceId))
+				if gameFn then gameFn() end
 			end
+		end
+	end
 		end
 	end
 	vape:CreateNotification('Relic', 'This is in BETA. (Expect Bugs)', 5, 'alert')
