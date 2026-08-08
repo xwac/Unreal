@@ -14,7 +14,6 @@ local vapeEvents = setmetatable({}, {
 		return result
 	end
 })
-shared.vapeEvents = vapeEvents
 
 local playersService = cloneref(game:GetService('Players'))
 local replicatedStorage = cloneref(game:GetService('ReplicatedStorage'))
@@ -68,7 +67,6 @@ local store = {
 	queueType = 'bedwars_test',
 	tools = {}
 }
-shared.store = store
 local Reach = {}
 local HitBoxes = {}
 local InfiniteFly = {}
@@ -967,21 +965,6 @@ run(function()
 		end
 	})
 
-	shared.bedwars = bedwars
-
-	local okSkinMeta, itemSkinMeta = pcall(require, replicatedStorage.TS.games.bedwars['item-skin']['item-skin-meta'])
-	if okSkinMeta then
-		bedwars.getItemSkinMeta = itemSkinMeta.getItemSkinMeta
-	end
-	local okSkinType, itemSkinType = pcall(require, replicatedStorage.TS.games.bedwars['item-skin']['item-skin-type'])
-	if okSkinType then
-		bedwars.ItemSkinType = itemSkinType.ItemSkinType
-	end
-	local okWizard, wizardUtil = pcall(require, replicatedStorage.TS.games.bedwars.kit.kits.zeno['wizard-util'])
-	if okWizard then
-		bedwars.WizardUtil = wizardUtil.WizardUtil
-	end
-
 	local remoteNames = {
 		AfkStatus = safeGetProto(Knit.Controllers.AfkController.KnitStart, 1),
 		AttackEntity = Knit.Controllers.SwordController.sendServerRequest,
@@ -1032,7 +1015,6 @@ run(function()
 		end
 		remotes[i] = remote
 	end
-	shared.remotes = remotes
 
 	OldBreak = bedwars.BlockController.isBlockBreakable
 
