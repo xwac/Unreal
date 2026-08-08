@@ -5,8 +5,7 @@ if not vape or (vape.Place or game.PlaceId) ~= 6872274481 then
 	return
 end
 
-task.spawn(function()
-	local Players = cloneref(game:GetService('Players'))
+local Players = cloneref(game:GetService('Players'))
 	local RunService = cloneref(game:GetService('RunService'))
 	local UserInputService = cloneref(game:GetService('UserInputService'))
 	local TweenService = cloneref(game:GetService('TweenService'))
@@ -2854,13 +2853,12 @@ task.spawn(function()
 			Tooltip = 'Extends how far the yuzi dash launches you.'
 		})
 
-		multiplier = yuziExtender:CreateSlider({
-			Name = 'Multiplier',
-			Min = 1,
-			Max = 5,
-			Default = 2,
-			Decimal = 10,
-			Suffix = 'x'
-		})
-	end
-end)
+	multiplier = yuziExtender:CreateSlider({
+		Name = 'Multiplier',
+		Min = 1,
+		Max = 5,
+		Default = 2,
+		Decimal = 10,
+		Suffix = 'x'
+	})
+end
