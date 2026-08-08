@@ -1,1 +1,1 @@
--- extra modules removed, premium modules are in games/6872274481.lua instead
+-- premium modules are now in games/6872274481.lua
