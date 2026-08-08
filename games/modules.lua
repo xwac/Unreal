@@ -16,12 +16,48 @@ task.spawn(function()
 	local lplr = Players.LocalPlayer
 	local currentCamera = workspace.CurrentCamera
 
-	-- own lazy event bus (same pattern as the place script's vapeEvents)
+	-- own lazy event bus (pure-Lua signals, no instances needed)
+	local function createSignal()
+		local listeners, waiters = {}, {}
+		local signal = {}
+
+		function signal:Connect(callback)
+			listeners[#listeners + 1] = callback
+			return {
+				Connected = true,
+				Disconnect = function()
+					local ind = table.find(listeners, callback)
+					if ind then
+						table.remove(listeners, ind)
+					end
+				end
+			}
+		end
+
+		function signal:Fire(...)
+			for _, callback in listeners do
+				pcall(callback, ...)
+			end
+			local pending = waiters
+			waiters = {}
+			for _, thread in pending do
+				task.spawn(coroutine.resume, thread, ...)
+			end
+		end
+
+		function signal:Wait()
+			waiters[#waiters + 1] = coroutine.running()
+			return coroutine.yield()
+		end
+
+		return signal
+	end
+
 	local vapeEvents = setmetatable({}, {
 		__index = function(self, index)
 			local result = rawget(self, index)
 			if result == nil then
-				result = Instance.new('BindableEvent')
+				result = createSignal()
 			end
 			rawset(self, index, result)
 			return result
@@ -463,13 +499,27 @@ task.spawn(function()
 	local targetColorSlider
 	local attackColorSlider
 	local characterPartCache = {}
-	local targetAdornment = Instance.new('BoxHandleAdornment')
-	targetAdornment.Adornee = nil
-	targetAdornment.AlwaysOnTop = false
-	targetAdornment.Size = Vector3.new(3, 5, 3)
-	targetAdornment.CFrame = CFrame.new(0, -0.5, 0)
-	targetAdornment.ZIndex = 0
-	targetAdornment.Parent = vape.gui
+	local targetBox = Drawing.new('Square')
+	targetBox.Visible = false
+	targetBox.Filled = false
+	targetBox.Thickness = 1
+
+	local function updateTargetBox(part, color, opacity)
+		if part and part.Parent then
+			local pos, onScreen = currentCamera:WorldToViewportPoint(part.Position)
+			if onScreen then
+				local distance = math.max((currentCamera.CFrame.Position - part.Position).Magnitude, 1)
+				local size = math.clamp(1200 / distance, 24, 180)
+				targetBox.Position = Vector2.new(pos.X - size / 2, pos.Y - size * 0.85)
+				targetBox.Size = Vector2.new(size, size * 1.7)
+				targetBox.Color = color
+				targetBox.Transparency = 1 - opacity
+				targetBox.Visible = true
+				return
+			end
+		end
+		targetBox.Visible = false
+	end
 
 	local function getAuraWeapon()
 		if not entity.isAlive then
@@ -586,7 +636,7 @@ task.spawn(function()
 			if entity.character and entity.character.Humanoid then
 				entity.character.Humanoid.AutoRotate = false
 			end
-			targetAdornment.Adornee = nil
+			updateTargetBox(nil)
 			return
 		end
 
@@ -637,7 +687,7 @@ task.spawn(function()
 
 			local heldItem, itemMeta = getAuraWeapon()
 			if not heldItem then
-				targetAdornment.Adornee = nil
+				updateTargetBox(nil)
 				lastTargetTime = 0
 				swingCounter = 0
 			else
@@ -655,9 +705,7 @@ task.spawn(function()
 				local target = entity.EntityPosition(query)
 
 				local activeColor = (tick() - lastAttackVisualTime < 0.1 and attackColorSlider) or targetColorSlider
-				targetAdornment.Adornee = (showTargetToggle.Enabled and target and target.RootPart) or nil
-				targetAdornment.Transparency = 1 - activeColor.Opacity
-				targetAdornment.Color3 = Color3.fromHSV(activeColor.Hue, activeColor.Sat, activeColor.Value)
+				updateTargetBox((showTargetToggle.Enabled and target and target.RootPart) or nil, Color3.fromHSV(activeColor.Hue, activeColor.Sat, activeColor.Value), activeColor.Opacity)
 
 				if not target then
 					lastTargetTime = 0
