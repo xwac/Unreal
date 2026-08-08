@@ -6,22 +6,301 @@ if not vape or (vape.Place or game.PlaceId) ~= 6872274481 then
 end
 
 task.spawn(function()
-	while not (shared.bedwars and shared.store and shared.remotes and shared.vapeEvents) do
-		task.wait(0.1)
+	local Players = cloneref(game:GetService('Players'))
+	local RunService = cloneref(game:GetService('RunService'))
+	local UserInputService = cloneref(game:GetService('UserInputService'))
+	local TweenService = cloneref(game:GetService('TweenService'))
+	local CollectionService = cloneref(game:GetService('CollectionService'))
+	local ReplicatedStorage = cloneref(game:GetService('ReplicatedStorage'))
+
+	local lplr = Players.LocalPlayer
+	local currentCamera = workspace.CurrentCamera
+
+	-- own lazy event bus (same pattern as the place script's vapeEvents)
+	local vapeEvents = setmetatable({}, {
+		__index = function(self, index)
+			local result = rawget(self, index)
+			if result == nil then
+				result = Instance.new('BindableEvent')
+			end
+			rawset(self, index, result)
+			return result
+		end
+	})
+
+	-- wait for the game's Knit init, same as the place script
+	local KnitInit, Knit
+	repeat
+		KnitInit, Knit = pcall(function()
+			return debug.getupvalue(require(lplr.PlayerScripts.TS.knit).setup, 9)
+		end)
+		if KnitInit then break end
+		task.wait()
+	until KnitInit
+
+	if not debug.getupvalue(Knit.Start, 1) then
+		repeat task.wait() until debug.getupvalue(Knit.Start, 1)
 	end
 
-	local bedwars = shared.bedwars
-	local store = shared.store
-	local remotes = shared.remotes
-	local vapeEvents = shared.vapeEvents
+	local Flamework = require(ReplicatedStorage['rbxts_include']['node_modules']['@flamework'].core.out).Flamework
+	local InventoryUtil = require(ReplicatedStorage.TS.inventory['inventory-util']).InventoryUtil
+	local Client = require(ReplicatedStorage.TS.remotes).default.Client
 
-	if not (bedwars and store and remotes and vapeEvents) then
-		return
+	-- own bedwars table, mirroring the place script's
+	local bedwars = setmetatable({
+		AbilityController = Flamework.resolveDependency('@easy-games/game-core:client/controllers/ability/ability-controller@AbilityController'),
+		AdetundeUpgradeMeta = require(ReplicatedStorage.TS.games.bedwars.items['frosty-hammer']['frosty-hammer-upgrades']).FrostyHammerUpgradeMeta,
+		AdetundeUtil = require(ReplicatedStorage.TS.games.bedwars.items['frosty-hammer']['frosty-hammer-util']).FrostyHammerUtil,
+		AnimationType = require(ReplicatedStorage.TS.animation['animation-type']).AnimationType,
+		AnimationUtil = require(ReplicatedStorage['rbxts_include']['node_modules']['@easy-games']['game-core'].out['shared'].util['animation-util']).AnimationUtil,
+		AppController = require(ReplicatedStorage['rbxts_include']['node_modules']['@easy-games']['game-core'].out.client.controllers['app-controller']).AppController,
+		BedBreakEffectMeta = require(ReplicatedStorage.TS.locker['bed-break-effect']['bed-break-effect-meta']).BedBreakEffectMeta,
+		BedwarsKitMeta = require(ReplicatedStorage.TS.games.bedwars.kit['bedwars-kit-meta']).BedwarsKitMeta,
+		BlockBreaker = Knit.Controllers.BlockBreakController.blockBreaker,
+		BlockController = require(ReplicatedStorage['rbxts_include']['node_modules']['@easy-games']['block-engine'].out).BlockEngine,
+		BlockEngine = require(lplr.PlayerScripts.TS.lib['block-engine']['client-block-engine']).ClientBlockEngine,
+		BlockPlacer = require(ReplicatedStorage['rbxts_include']['node_modules']['@easy-games']['block-engine'].out.client.placement['block-placer']).BlockPlacer,
+		BowConstantsTable = debug.getupvalue(Knit.Controllers.ProjectileController.enableBeam, 8),
+		ClickHold = require(ReplicatedStorage['rbxts_include']['node_modules']['@easy-games']['game-core'].out.client.ui.lib.util['click-hold']).ClickHold,
+		Client = Client,
+		ClientConstructor = require(ReplicatedStorage['rbxts_include']['node_modules']['@rbxts'].net.out.client),
+		ClientDamageBlock = require(ReplicatedStorage['rbxts_include']['node_modules']['@easy-games']['block-engine'].out.shared.remotes).BlockEngineRemotes.Client,
+		CombatConstant = require(ReplicatedStorage.TS.combat['combat-constant']).CombatConstant,
+		DamageIndicator = Knit.Controllers.DamageIndicatorController.spawnDamageIndicator,
+		DefaultKillEffect = require(lplr.PlayerScripts.TS.controllers.global.locker['kill-effect'].effects['default-kill-effect']),
+		EmoteType = require(ReplicatedStorage.TS.locker.emote['emote-type']).EmoteType,
+		GameAnimationUtil = require(ReplicatedStorage.TS.animation['animation-util']).GameAnimationUtil,
+		getIcon = function(item, showinv)
+			local itemmeta = bedwars.ItemMeta[item.itemType]
+			return itemmeta and showinv and itemmeta.image or ''
+		end,
+		getInventory = function(plr)
+			local suc, res = pcall(function()
+				return InventoryUtil.getInventory(plr)
+			end)
+			return suc and res or {
+				items = {},
+				armor = {}
+			}
+		end,
+		HudAliveCount = require(lplr.PlayerScripts.TS.controllers.global['top-bar'].ui.game['hud-alive-player-counts']).HudAlivePlayerCounts,
+		ItemMeta = debug.getupvalue(require(ReplicatedStorage.TS.item['item-meta']).getItemMeta, 1),
+		KillEffectMeta = require(ReplicatedStorage.TS.locker['kill-effect']['kill-effect-meta']).KillEffectMeta,
+		KillFeedController = Flamework.resolveDependency('client/controllers/game/kill-feed/kill-feed-controller@KillFeedController'),
+		Knit = Knit,
+		KnockbackUtil = require(ReplicatedStorage.TS.damage['knockback-util']).KnockbackUtil,
+		MageKitUtil = require(ReplicatedStorage.TS.games.bedwars.kit.kits.mage['mage-kit-util']).MageKitUtil,
+		NametagController = Knit.Controllers.NametagController,
+		PartyController = Flamework.resolveDependency('@easy-games/lobby:client/controllers/party-controller@PartyController'),
+		ProjectileMeta = require(ReplicatedStorage.TS.projectile['projectile-meta']).ProjectileMeta,
+		PingController = require(lplr.PlayerScripts.TS.controllers.game.ping['ping-controller']).PingController,
+		QueryUtil = require(ReplicatedStorage['rbxts_include']['node_modules']['@easy-games']['game-core'].out).GameQueryUtil,
+		QueueCard = require(lplr.PlayerScripts.TS.controllers.global.queue.ui['queue-card']).QueueCard,
+		QueueMeta = require(ReplicatedStorage.TS.game['queue-meta']).QueueMeta,
+		Roact = require(ReplicatedStorage['rbxts_include']['node_modules']['@rbxts']['roact'].src),
+		RuntimeLib = require(ReplicatedStorage['rbxts_include'].RuntimeLib),
+		SoundList = require(ReplicatedStorage.TS.sound['game-sound']).GameSound,
+		SoundManager = require(ReplicatedStorage['rbxts_include']['node_modules']['@easy-games']['game-core'].out).SoundManager,
+		StatusEffectUtil = require(ReplicatedStorage.TS['status-effect']['status-effect-util']).StatusEffectUtil,
+		StatusEffectMeta = require(ReplicatedStorage.TS['status-effect']['status-effect-type']).StatusEffectType,
+		Store = require(lplr.PlayerScripts.TS.ui.store).ClientStore,
+		SummonerKitBalance = require(ReplicatedStorage.TS.games.bedwars.kit.kits.summoner['summoner-kit-balance']).SummonerKitBalance,
+		TeamUpgradeMeta = debug.getupvalue(require(ReplicatedStorage.TS.games.bedwars['team-upgrade']['team-upgrade-meta']).getTeamUpgradeMetaForQueue, 7),
+		UILayers = require(ReplicatedStorage['rbxts_include']['node_modules']['@easy-games']['game-core'].out).UILayers,
+		VisualizerUtils = require(lplr.PlayerScripts.TS.lib.visualizer['visualizer-utils']).VisualizerUtils,
+		WeldTable = require(ReplicatedStorage.TS.util['weld-util']).WeldUtil,
+		WinEffectMeta = require(ReplicatedStorage.TS.locker['win-effect']['win-effect-meta']).WinEffectMeta,
+		ZapNetworking = require(lplr.PlayerScripts.TS.lib.network)
+	}, {
+		__index = function(self, ind)
+			rawset(self, ind, Knit.Controllers[ind])
+			return rawget(self, ind)
+		end
+	})
+
+	local wizardUtil
+	pcall(function()
+		wizardUtil = require(ReplicatedStorage.TS.games.bedwars.items['wizard-staff']['wizard-util']).WizardUtil
+	end)
+	if not wizardUtil then
+		pcall(function()
+			wizardUtil = require(lplr.PlayerScripts.TS.games.bedwars.items['wizard-staff']['wizard-util']).WizardUtil
+		end)
+	end
+	bedwars.WizardUtil = wizardUtil
+
+	local remotes = {
+		AttackEntity = (function()
+			local function dumpRemote(tab)
+				local ind
+				for i, v in tab do
+					if v == 'Client' then
+						ind = i
+						break
+					end
+				end
+				return ind and tab[ind + 1] or ''
+			end
+			local ok, name = pcall(function()
+				return dumpRemote(debug.getconstants(Knit.Controllers.SwordController.sendServerRequest))
+			end)
+			return ok and name or ''
+		end)()
+	}
+
+	local store = {
+		inventory = {inventory = {}},
+		hand = nil,
+		tools = {},
+		equippedKit = '',
+		matchState = 0,
+		inventories = {},
+		blocks = {},
+	}
+	store.blockPlacer = bedwars.BlockPlacer.new(bedwars.BlockEngine, 'wool_white')
+
+	local function getSword()
+		local best, slot, maxDmg = nil, nil, 0
+		for i, item in store.inventory.inventory.items do
+			local meta = bedwars.ItemMeta[item.itemType]
+			local sword = meta and meta.sword
+			if sword then
+				local dmg = sword.damage or 0
+				if dmg > maxDmg then
+					best, slot, maxDmg = item, i, dmg
+				end
+			end
+		end
+		return best, slot
 	end
 
-	while not (store.blocks and vapeEvents.EntityDamageEvent and vapeEvents.InventoryChanged) do
-		task.wait(0.1)
+	local function getTool(breakType)
+		local best, slot, maxDmg = nil, nil, 0
+		for i, item in store.inventory.inventory.items do
+			local meta = bedwars.ItemMeta[item.itemType]
+			local tool = meta and meta.breakBlock
+			if tool then
+				local dmg = tool[breakType] or 0
+				if dmg > maxDmg then
+					best, slot, maxDmg = item, i, dmg
+				end
+			end
+		end
+		return best, slot
 	end
+
+	local function getItem(itemName, inv)
+		for _, item in (inv or store.inventory.inventory.items) do
+			if item and item.itemType == itemName then
+				return item
+			end
+		end
+	end
+
+	local invFireQueued = false
+	local function flushInventoryEvents()
+		invFireQueued = false
+		vapeEvents.InventoryChanged:Fire()
+	end
+
+	local function updateStore(new, old)
+		if new.Bedwars ~= old.Bedwars then
+			store.equippedKit = new.Bedwars.kit ~= 'none' and new.Bedwars.kit or ''
+		end
+
+		if new.Game ~= old.Game then
+			store.matchState = new.Game.matchState
+		end
+
+		if new.Inventory ~= old.Inventory then
+			local newinv = (new.Inventory and new.Inventory.observedInventory or {inventory = {}})
+			local oldinv = (old.Inventory and old.Inventory.observedInventory or {inventory = {}})
+			store.inventory = newinv
+
+			local invChanged = newinv ~= oldinv
+			local itemsChanged = newinv.inventory.items ~= oldinv.inventory.items
+
+			if itemsChanged then
+				store.tools.sword = getSword()
+				for _, v in {'stone', 'wood', 'wool'} do
+					store.tools[v] = getTool(v)
+				end
+			end
+
+			if newinv.inventory.hand ~= oldinv.inventory.hand then
+				local currentHand, toolType = new.Inventory.observedInventory.inventory.hand, ''
+				if currentHand then
+					local handData = bedwars.ItemMeta[currentHand.itemType]
+					toolType = handData and (handData.sword and 'sword' or handData.block and 'block' or currentHand.itemType:find('bow') and 'bow') or ''
+				end
+
+				store.hand = {
+					tool = currentHand and currentHand.tool,
+					amount = currentHand and currentHand.amount or 0,
+					toolType = toolType
+				}
+			end
+
+			if invChanged and not invFireQueued then
+				invFireQueued = true
+				task.defer(flushInventoryEvents)
+			end
+		end
+	end
+
+	local storeChanged = bedwars.Store.changed:connect(updateStore)
+	updateStore(bedwars.Store:getState(), {})
+
+	bedwars.ZapNetworking.EntityDamageEventZap.On(function(...)
+		vapeEvents.EntityDamageEvent:Fire({
+			entityInstance = ...,
+			damage = select(2, ...),
+			damageType = select(3, ...),
+			fromPosition = select(4, ...),
+			fromEntity = select(5, ...),
+			knockbackMultiplier = select(6, ...),
+			knockbackId = select(7, ...),
+			disableDamageHighlight = select(13, ...)
+		})
+	end)
+
+	bedwars.placeBlock = function(pos, item)
+		if getItem(item) then
+			store.blockPlacer.blockType = item
+			return store.blockPlacer:placeBlock(bedwars.BlockController:getBlockPosition(pos))
+		end
+	end
+
+	bedwars.breakBlock = bedwars.breakBlock or function() end
+
+	task.spawn(function()
+		for _, obj in CollectionService:GetTagged('block') do
+			table.insert(store.blocks, obj)
+		end
+		CollectionService:GetInstanceAddedSignal('block'):Connect(function(obj)
+			table.insert(store.blocks, obj)
+		end)
+		CollectionService:GetInstanceRemovedSignal('block'):Connect(function(obj)
+			local ind = table.find(store.blocks, obj)
+			if ind then
+				table.remove(store.blocks, ind)
+			end
+		end)
+	end)
+
+	task.spawn(function()
+		while true do
+			for _, plr in Players:GetPlayers() do
+				if plr ~= lplr then
+					local ok, inv = pcall(bedwars.getInventory, plr)
+					if ok then
+						store.inventories[plr] = inv
+					end
+				end
+			end
+			task.wait(0.5)
+		end
+	end)
 
 	local Players = cloneref(game:GetService('Players'))
 	local RunService = cloneref(game:GetService('RunService'))
@@ -1188,6 +1467,10 @@ task.spawn(function()
 		local shockwaveRange, useLightningStrike, useLightningStorm, zenoRange, zenoDelay
 
 		local function equipWizardStaff()
+			if not bedwars.WizardUtil then
+				return
+			end
+
 			if not limitToItem.Enabled then
 				for _, item in store.inventory.inventory.items do
 					if bedwars.WizardUtil:isWizardStaff(item.itemType) and item.tool then
@@ -1206,6 +1489,10 @@ task.spawn(function()
 		end
 
 		local function canUseWizardAbility(ability, staff)
+			if not bedwars.WizardUtil then
+				return false
+			end
+
 			if bedwars.WizardUtil:hasAbility(staff, ability) then
 				local staffController = bedwars.WizardStaffController
 				if staffController then
