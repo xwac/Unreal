@@ -152,8 +152,6 @@ if not shared.VapeIndependent then
 			end
 		end
 	end
-		end
-	end
 	vape:CreateNotification('Relic', 'This is in BETA. (Expect Bugs)', 5, 'alert')
 	finishLoading()
 else
