@@ -206,6 +206,10 @@ local function addMaid(object)
 			table.insert(self.Connections, {
 				Disconnect = callback
 			})
+		elseif type(callback) == 'thread' then
+			table.insert(self.Connections, {
+				Disconnect = function() end
+			})
 		else
 			table.insert(self.Connections, callback)
 		end

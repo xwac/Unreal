@@ -10156,6 +10156,9 @@ local function setupKillaura()
     local auraAnims = vape.Libraries.auraanims
     local currentTween
     local defaultWristC0
+    local killauraAnimating = false
+    local TweenService = cloneref(game:GetService('TweenService'))
+    local localPlayer = game.Players.LocalPlayer
 
     local function runCustomAnimation()
         local resetWrist = false
@@ -10228,8 +10231,12 @@ local function setupKillaura()
             for _, part in particleParts do
                 part.Parent = nil
             end
-            debug.setupvalue(originalPlaySwordEffect or bedwars.SwordController.playSwordEffect, 7, bedwars.Knit)
-            debug.setupvalue(bedwars.ScytheController.playLocalAnimation, 3, bedwars.Knit)
+            pcall(function()
+                debug.setupvalue(originalPlaySwordEffect or bedwars.SwordController.playSwordEffect, 7, bedwars.Knit)
+            end)
+            pcall(function()
+                debug.setupvalue(bedwars.ScytheController.playLocalAnimation, 3, bedwars.Knit)
+            end)
             killauraAnimating = false
             if defaultWristC0 then
                 currentTween = TweenService:Create(
@@ -10250,8 +10257,12 @@ local function setupKillaura()
                         },
                     },
                 }
-                debug.setupvalue(originalPlaySwordEffect or bedwars.SwordController.playSwordEffect, 7, viewmodelHook)
-                debug.setupvalue(bedwars.ScytheController.playLocalAnimation, 3, viewmodelHook)
+                pcall(function()
+                    debug.setupvalue(originalPlaySwordEffect or bedwars.SwordController.playSwordEffect, 7, viewmodelHook)
+                end)
+                pcall(function()
+                    debug.setupvalue(bedwars.ScytheController.playLocalAnimation, 3, viewmodelHook)
+                end)
                 task.spawn(runCustomAnimation)
             end
         end
@@ -10632,6 +10643,8 @@ local function setupKillaura()
         Tooltip = "Only attacks while swinging manually",
     })
 end
+
+setupKillaura()
 
 local function isGUIOpen()
 	if not vape or not vape.Categories or not vape.Categories.Main then return false end
