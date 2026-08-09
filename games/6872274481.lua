@@ -10160,6 +10160,13 @@ local function setupKillaura()
 	local targetBoxes = {}
 
 	local function getHeldWeapon()
+		local hand = store.hand
+		if hand and hand.tool then
+			local meta = bedwars.ItemMeta[hand.tool.Name]
+			if meta and meta.sword then
+				return hand.tool, meta
+			end
+		end
 		local character = lplr.Character
 		if character then
 			local tool = character:FindFirstChildOfClass('Tool')
@@ -10168,13 +10175,6 @@ local function setupKillaura()
 				if meta and meta.sword then
 					return tool, meta
 				end
-			end
-		end
-		local hand = store.hand
-		if hand and hand.tool and hand.tool.Parent then
-			local meta = bedwars.ItemMeta[hand.tool.Name]
-			if meta and meta.sword then
-				return hand.tool, meta
 			end
 		end
 	end
@@ -10360,8 +10360,8 @@ local function setupKillaura()
 						break
 					end
 					pcall(function()
-						local character = lplr.Character
-						if not (character and character.RootPart and character.RootPart.Parent and character.Humanoid and canAttack()) then
+						local character = entitylib.character
+						if not (character and character.RootPart and character.Humanoid and canAttack()) then
 							store.KillauraTarget = nil
 							return
 						end
