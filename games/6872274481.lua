@@ -10633,6 +10633,25 @@ local function setupKillaura()
     })
 end
 
+local function isGUIOpen()
+	if not vape or not vape.Categories or not vape.Categories.Main then return false end
+	local main = vape.Categories.Main
+	return main.Visible or (main.Options and main.Options['GUI bind indicator'] and main.Options['GUI bind indicator'].Enabled)
+end
+
+local function isFirstPerson()
+	local char = entitylib.character
+	if not char or not char.PrimaryPart or not currentCamera then return false end
+	local head = char:FindFirstChild('Head')
+	if not head then return false end
+	local dist = (currentCamera.CFrame.Position - head.Position).Magnitude
+	return dist < 4
+end
+
+local function cloneRaycast()
+	return RaycastParams.new()
+end
+
 local function setupProjectileAimbot()
     local TargetPart
     local Targets
@@ -11263,25 +11282,6 @@ local function setupProjectileAimbot()
         Default = 100,
         Tooltip = 'Bow/frost staff charge percentage (affects damage)'
     })
-end
-
-local function isGUIOpen()
-	if not vape or not vape.Categories or not vape.Categories.Main then return false end
-	local main = vape.Categories.Main
-	return main.Visible or (main.Options and main.Options['GUI bind indicator'] and main.Options['GUI bind indicator'].Enabled)
-end
-
-local function isFirstPerson()
-	local char = entitylib.character
-	if not char or not char.PrimaryPart or not currentCamera then return false end
-	local head = char:FindFirstChild('Head')
-	if not head then return false end
-	local dist = (currentCamera.CFrame.Position - head.Position).Magnitude
-	return dist < 4
-end
-
-local function cloneRaycast()
-	return RaycastParams.new()
 end
 
 setupProjectileAimbot()

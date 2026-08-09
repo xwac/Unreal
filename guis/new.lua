@@ -5797,16 +5797,6 @@ mainapi:CreateCategory({
 	Icon = getcustomasset('unreal/assets/new/miniicon.png'),
 	Size = UDim2.fromOffset(19, 12)
 })
-mainapi:CreateCategory({
-	Name = 'Legit',
-	Icon = getcustomasset('unreal/assets/new/legittab.png'),
-	Size = UDim2.fromOffset(14, 14)
-})
-mainapi:CreateCategory({
-	Name = 'Kits',
-	Icon = getcustomasset('unreal/assets/new/targetnpc1.png'),
-	Size = UDim2.fromOffset(14, 14)
-})
 mainapi.Categories.Main:CreateDivider('misc')
 
 --[[
