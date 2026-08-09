@@ -10345,7 +10345,7 @@ local function setupKillaura()
                                         bedwars.SwordController.lastAttack = workspace:GetServerTimeNow()
                                         lastAttackTime = tick()
 
-                                        bedwars.Handler:Get('SwordHit'):Fire('SendToServer', {
+                                        bedwars.Client:Get(remotes.AttackEntity):SendToServer({
                                             weapon = heldItem.tool,
                                             chargedAttack = {chargeRatio = 0},
                                             entityInstance = target.Character,
