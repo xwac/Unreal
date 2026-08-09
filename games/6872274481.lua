@@ -10414,7 +10414,7 @@ local function setupKillaura()
 							packets = packets * 2
 						end
 
-						if not fullPower and tick() - lastBurst < attackDelaySlider:GetRandomValue() then
+						if tick() - lastBurst < (fullPower and 0.03 or attackDelaySlider:GetRandomValue()) then
 							return
 						end
 						lastBurst = tick()
@@ -10457,7 +10457,7 @@ local function setupKillaura()
 									if not sent then
 										break
 									end
-									if p < packets and not fullPower then
+									if p < packets then
 										task.wait(0.012)
 									end
 								end
