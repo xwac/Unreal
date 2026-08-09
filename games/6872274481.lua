@@ -10139,9 +10139,7 @@ local function setupKillaura()
 	local killaura
 	local targets
 	local attackRangeSlider
-	local attackDelaySlider
 	local hitRegSlider
-	local maxTargetsSlider
 	local targetModeDropdown
 	local hitChanceSlider
 	local maxAngleSlider
@@ -10158,6 +10156,8 @@ local function setupKillaura()
 	local showTargetToggle
 	local targetColorSlider
 	local targetBoxes = {}
+	local rayParams = RaycastParams.new()
+	local RAYCAST_SWORD_CHARACTER_DISTANCE = bedwars.CombatConstant.RAYCAST_SWORD_CHARACTER_DISTANCE
 
 	local function getHeldWeapon()
 		local character = lplr.Character
@@ -10185,18 +10185,6 @@ local function setupKillaura()
 			if item and item.tool and item.tool ~= (hand and hand.tool) then
 				local meta = bedwars.ItemMeta[item.tool.Name]
 				if meta and meta.sword then
-					bedwars.Store:dispatch({
-						type = 'InventorySelectHotbarSlot',
-						slot = slot
-					})
-					return true
-				end
-			end
-		end
-		local sword = store.tools.sword
-		if sword and sword.tool then
-			for slot, item in store.inventory.inventory.items do
-				if item and item.tool == sword.tool then
 					bedwars.Store:dispatch({
 						type = 'InventorySelectHotbarSlot',
 						slot = slot
@@ -10243,70 +10231,44 @@ local function setupKillaura()
 		end
 	end
 
-	local function getTargets(origin)
-		local list = {}
-		local primary
-
-		local ok = pcall(function()
-			primary = entitylib.EntityPosition({
-				Origin = origin,
-				Range = attackRangeSlider.Value,
-				Wallcheck = targets.Walls.Enabled or nil,
-				Part = 'RootPart',
-				Players = targets.Players.Enabled,
-				NPCs = targets.NPCs.Enabled,
-				Limit = 1,
-				Sort = getSortFunction(),
-			})
-		end)
-		if ok and primary then
-			table.insert(list, primary)
-		end
-
-		local wanted = maxTargetsSlider.Value
-		if wanted <= #list then
-			return list
-		end
-
-		local wantPlayers = targets.Players.Enabled
-		local wantNpcs = targets.NPCs.Enabled
-		local range = attackRangeSlider.Value
-		for _, ent in entitylib.List do
-			if wanted <= #list then
-				break
-			end
-			if ent ~= primary and ent.Targetable and ent.Character and ent.RootPart and ent.RootPart.Parent then
-				local entity = ent.Entity
-				local isPlayer = entity and typeof(entity) == 'Instance' and entity:IsA('Player')
-				if (isPlayer and wantPlayers) or (not isPlayer and wantNpcs) then
-					if (ent.RootPart.Position - origin).Magnitude <= range then
-						table.insert(list, ent)
-					end
-				end
-			end
+	local function getTarget(origin)
+		local ok, target = pcall(entitylib.EntityPosition, {
+			Origin = origin,
+			Range = attackRangeSlider.Value,
+			Wallcheck = targets.Walls.Enabled or nil,
+			Part = 'RootPart',
+			Players = targets.Players.Enabled,
+			NPCs = targets.NPCs.Enabled,
+			Limit = 1,
+			Sort = getSortFunction(),
+		})
+		if not ok or not target then
+			return nil
 		end
 
 		if maxAngleSlider.Value < 360 then
-			local aimSource = (inputService.KeyboardEnabled and workspace.CurrentCamera) or entitylib.character.RootPart
+			local aimSource = (inputService.KeyboardEnabled and workspace.CurrentCamera) or origin
 			local look = aimSource.CFrame.LookVector * Vector3.new(1, 0, 1)
-			local angleLimit = math.cos(math.rad(maxAngleSlider.Value) / 2)
-			for i = #list, 1, -1 do
-				local ent = list[i]
-				local flat = (ent.RootPart.Position - origin) * Vector3.new(1, 0, 1)
-				local facing = 0
-				if 0 < look.Magnitude and 0 < flat.Magnitude then
-					facing = (look / look.Magnitude):Dot(flat / flat.Magnitude)
-				end
-				if facing < angleLimit then
-					table.remove(list, i)
+			local flat = (target.RootPart.Position - origin) * Vector3.new(1, 0, 1)
+			if 0 < look.Magnitude and 0 < flat.Magnitude then
+				if (look / look.Magnitude):Dot(flat / flat.Magnitude) < math.cos(math.rad(maxAngleSlider.Value) / 2) then
+					return nil
 				end
 			end
 		end
 
-		return list
+		return target
 	end
 
-	local function sendAttack(target, weapon, meta, origin, shiftY)
+	local function getShiftY(p)
+		if p <= 1 then
+			return 0
+		end
+		local s = (p % 2 == 0) and (p / 2) or -(p / 2)
+		return math.clamp(s * 0.5, -3, 3)
+	end
+
+	local function sendAttack(target, weapon, origin, shiftY)
 		local targetRoot = target.RootPart
 		local aimPoint = targetRoot.Position + Vector3.new(0, shiftY or 0, 0)
 
@@ -10319,20 +10281,16 @@ local function setupKillaura()
 			end
 		end
 
-		local camera = workspace.CurrentCamera
-		local cameraPos = camera.CFrame.Position
-		local cursorDirection = (aimPoint - cameraPos).Unit
+		local cursorDirection = CFrame.lookAt(origin, aimPoint).LookVector
 		local dist = (aimPoint - origin).Magnitude
-		local selfPos = origin + cursorDirection * math.max(dist - 14.4, 0)
+		local selfPosition = origin + cursorDirection * math.max(dist - RAYCAST_SWORD_CHARACTER_DISTANCE, 0)
 
 		if jitterToggle.Enabled then
-			aimPoint = aimPoint + Vector3.new(
-				math.random() * 1.2 - 0.6,
-				math.random() * 1.2 - 0.6,
-				math.random() * 1.2 - 0.6
-			)
-			cursorDirection = (aimPoint - cameraPos).Unit
-			selfPos = selfPos + Vector3.new(math.random() * 0.4 - 0.2, 0, math.random() * 0.4 - 0.2)
+			cursorDirection = CFrame.lookAt(
+				origin,
+				aimPoint + Vector3.new(math.random() * 0.6 - 0.3, math.random() * 0.6 - 0.3, math.random() * 0.6 - 0.3)
+			).LookVector
+			selfPosition = selfPosition + Vector3.new(math.random() * 0.3 - 0.15, 0, math.random() * 0.3 - 0.15)
 		end
 
 		bedwars.Client:Get(remotes.AttackEntity):SendToServer({
@@ -10341,11 +10299,11 @@ local function setupKillaura()
 			entityInstance = target.Character,
 			validate = {
 				raycast = {
-					cameraPosition = {value = cameraPos},
+					cameraPosition = {value = workspace.CurrentCamera.CFrame.Position},
 					cursorDirection = {value = cursorDirection},
 				},
-				targetPosition = {value = targetRoot.Position},
-				selfPosition = {value = selfPos},
+				targetPosition = {value = target.Character:GetPivot().Position},
+				selfPosition = {value = selfPosition},
 			},
 		})
 	end
@@ -10353,7 +10311,6 @@ local function setupKillaura()
 	local function onKillauraToggled(enabled)
 		if enabled then
 			task.spawn(function()
-				local lastBurst = 0
 				repeat
 					task.wait()
 					if not killaura.Enabled then
@@ -10380,49 +10337,47 @@ local function setupKillaura()
 							return
 						end
 
-						if swingOnlyToggle.Enabled and 0.2 < tick() - bedwars.SwordController.lastSwing then
-							return
-						end
-
-						local list = getTargets(origin)
-						if #list == 0 then
+						local target = getTarget(origin)
+						if not target then
 							store.KillauraTarget = nil
 							return
 						end
 
-						store.KillauraTarget = list[1]
+						store.KillauraTarget = target
+
+						local toTarget = target.RootPart.Position - origin
+						if RAYCAST_SWORD_CHARACTER_DISTANCE < toTarget.Magnitude then
+							return
+						end
 
 						if faceTargetToggle.Enabled then
-							local flat = (list[1].RootPart.Position - origin) * Vector3.new(1, 0, 1)
+							local flat = toTarget * Vector3.new(1, 0, 1)
 							if 0 < flat.Magnitude then
 								character.RootPart.CFrame = CFrame.lookAlong(character.RootPart.Position, flat)
 							end
 						end
 
 						if showTargetToggle.Enabled then
-							for i = 1, math.min(10, #list) do
-								local box = targetBoxes[i]
-								if box then
-									box.Adornee = list[i].RootPart
-									box.Color3 = Color3.fromHSV(targetColorSlider.Hue, targetColorSlider.Sat, targetColorSlider.Value)
-									box.Transparency = 1 - targetColorSlider.Opacity
-								end
+							local box = targetBoxes[1]
+							if box then
+								box.Adornee = target.RootPart
+								box.Color3 = Color3.fromHSV(targetColorSlider.Hue, targetColorSlider.Sat, targetColorSlider.Value)
+								box.Transparency = 1 - targetColorSlider.Opacity
 							end
 						end
 
-						local packets = hitRegSlider.Value
-						local fullPower = 35 <= packets
-						local spread = fullPower and 9 or 6
-						if fullPower then
-							packets = packets * 2
+						local readyToHit = false
+						local cooldownOk = pcall(function()
+							readyToHit = bedwars.SwordController:getRemainingSwingCooldown(weapon.Name) <= 0
+						end)
+						if not cooldownOk then
+							readyToHit = true
 						end
-
-						if tick() - lastBurst < (fullPower and 0.03 or attackDelaySlider:GetRandomValue()) then
+						if not readyToHit then
 							return
 						end
-						lastBurst = tick()
 
-						if not noSwingToggle.Enabled then
+						if not noSwingToggle.Enabled and not swingOnlyToggle.Enabled then
 							pcall(function()
 								bedwars.SwordController:playSwordEffect(meta, false)
 								bedwars.SwordController.lastSwing = tick()
@@ -10449,21 +10404,15 @@ local function setupKillaura()
 							end
 						end
 
-						for i = 1, math.min(maxTargetsSlider.Value, #list) do
+						bedwars.SwordController.lastAttack = workspace:GetServerTimeNow()
+
+						local packets = hitRegSlider.Value
+						for p = 1, packets do
 							if math.random(0, 100) <= hitChanceSlider.Value then
-								local target = list[i]
-								for p = 1, packets do
-									local shiftY = packets == 1 and 0 or (p - 1) / (packets - 1) * spread - spread / 2
-									local sent = pcall(function()
-										sendAttack(target, weapon, meta, origin, shiftY)
-									end)
-									if not sent then
-										break
-									end
-									if p < packets then
-										task.wait(0.012)
-									end
-								end
+								local shiftY = getShiftY(p)
+								pcall(function()
+									sendAttack(target, weapon, origin, shiftY)
+								end)
 							end
 						end
 					end)
@@ -10496,27 +10445,12 @@ local function setupKillaura()
 		end,
 	})
 
-	attackDelaySlider = killaura:CreateTwoSlider({
-		Name = 'Attack delay',
-		Min = 0.05,
-		Max = 1,
-		DefaultMin = 0.05,
-		DefaultMax = 0.1,
-	})
-
 	hitRegSlider = killaura:CreateSlider({
 		Name = 'Hit Registration',
 		Min = 1,
 		Max = 36,
 		Default = 36,
-		Tooltip = 'Packets per hit, each aimed at a shifted height for maximum registration',
-	})
-
-	maxTargetsSlider = killaura:CreateSlider({
-		Name = 'Max targets',
-		Min = 1,
-		Max = 5,
-		Default = 5,
+		Tooltip = 'Packets per swing, each aimed at a shifted height for maximum registration',
 	})
 
 	targetModeDropdown = killaura:CreateDropdown({
@@ -10541,19 +10475,17 @@ local function setupKillaura()
 
 	predictToggle = killaura:CreateToggle({
 		Name = 'Velocity prediction',
-		Default = true,
 		Tooltip = 'Leads targets by their movement',
 	})
 
 	jitterToggle = killaura:CreateToggle({
 		Name = 'Packet jitter',
-		Default = true,
 		Tooltip = 'Randomizes each packet slightly to avoid flags',
 	})
 
 	swingOnlyToggle = killaura:CreateToggle({
 		Name = 'Swing only',
-		Tooltip = 'Only attacks while swinging manually',
+		Tooltip = 'Does not swing automatically',
 	})
 
 	requireMouseDownToggle = killaura:CreateToggle({Name = 'Require mouse down'})
@@ -10578,16 +10510,14 @@ local function setupKillaura()
 				end
 				table.clear(targetBoxes)
 			else
-				for i = 1, 10 do
-					local box = Instance.new('BoxHandleAdornment')
-					box.Adornee = nil
-					box.AlwaysOnTop = false
-					box.Size = Vector3.new(4, 6, 2)
-					box.CFrame = CFrame.new(0, 1, 0)
-					box.ZIndex = 0
-					box.Parent = vape.gui
-					targetBoxes[i] = box
-				end
+				local box = Instance.new('BoxHandleAdornment')
+				box.Adornee = nil
+				box.AlwaysOnTop = false
+				box.Size = Vector3.new(4, 6, 2)
+				box.CFrame = CFrame.new(0, 1, 0)
+				box.ZIndex = 0
+				box.Parent = vape.gui
+				targetBoxes[1] = box
 			end
 		end,
 	})
@@ -10605,6 +10535,7 @@ local function setupKillaura()
 		Tooltip = 'Only attacks while a sword is held',
 	})
 end
+
 setupKillaura()
 
 local function isGUIOpen()
