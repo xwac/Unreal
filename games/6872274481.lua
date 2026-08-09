@@ -7607,18 +7607,27 @@ run(function()
 	store.airRay.FilterType = Enum.RaycastFilterType.Exclude
 
 	task.spawn(function()
+		local pingStore = {
+			incoming = 0,
+			total = 0
+		}
+		store.ping = pingStore
 		while true do
 			local ok, ping = pcall(function()
 				return lplr:GetNetworkPing() / 1000
 			end)
-			if ok then
-				if not store.ping then
-					store.ping = {incoming = 0, total = 0}
-				end
-				store.ping.total = ping
-				store.ping.incoming = ping
+			if ok and ping then
+				pingStore.total = ping
+				pingStore.incoming = ping
 			end
-			store.airRay.FilterDescendantsInstances = {lplr.Character}
+			local airRay = store.airRay
+			if not airRay then
+				airRay = RaycastParams.new()
+				airRay.FilterType = Enum.RaycastFilterType.Exclude
+				store.airRay = airRay
+			end
+			local character = lplr.Character
+			airRay.FilterDescendantsInstances = character and {character} or {}
 			task.wait(0.5)
 		end
 	end)
