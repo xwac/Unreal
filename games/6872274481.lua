@@ -7612,6 +7612,9 @@ run(function()
 				return lplr:GetNetworkPing() / 1000
 			end)
 			if ok then
+				if not store.ping then
+					store.ping = {incoming = 0, total = 0}
+				end
 				store.ping.total = ping
 				store.ping.incoming = ping
 			end
@@ -7666,7 +7669,7 @@ run(function()
 			return
 		end
 
-		if mouseDownToggle.Enabled and not UserInputService:IsMouseButtonPressed(0) and 0.3 < tick() - bedwars.SwordController.lastSwing then
+		if mouseDownToggle.Enabled and not inputService:IsMouseButtonPressed(0) and 0.3 < tick() - bedwars.SwordController.lastSwing then
 			return
 		end
 
@@ -7723,7 +7726,7 @@ run(function()
 			characterPartCache[target.Character] = target.Character:GetChildren()
 		end
 
-		local mouseLocation = UserInputService:GetMouseLocation()
+		local mouseLocation = inputService:GetMouseLocation()
 		local closestDistance = 9000000000
 		local closestPart = nil
 
@@ -7866,7 +7869,7 @@ run(function()
 						end
 						swingCounter = swingCounter + 1
 
-						local aimSource = (UserInputService.KeyboardEnabled and workspace.CurrentCamera) or entity.character.RootPart
+						local aimSource = (inputService.KeyboardEnabled and workspace.CurrentCamera) or entity.character.RootPart
 						local lookDirection = aimSource.CFrame.LookVector * Vector3.new(1, 0, 1)
 						local toTarget = target.RootPart.Position - origin
 						local flatToTarget = (target.RootPart.Position - origin) * Vector3.new(1, 0, 1)
@@ -10006,7 +10009,7 @@ end
 end)
 
 local function getKillauraWeapon()
-    if killauraRequireMouseDownToggle.Enabled and not UserInputService:IsMouseButtonPressed(0) then
+    if killauraRequireMouseDownToggle.Enabled and not inputService:IsMouseButtonPressed(0) then
         return
     end
 
@@ -10629,7 +10632,7 @@ local function setupKillaura()
     limitToItemsToggle = killaura:CreateToggle({
         Name = "Limit to items",
         Function = function(enabled)
-            if UserInputService.TouchEnabled and killaura.Enabled then
+            if inputService.TouchEnabled and killaura.Enabled then
                 pcall(function()
                     localPlayer.PlayerGui.MobileUI["2"].Visible = enabled
                 end)
