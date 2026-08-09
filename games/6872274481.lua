@@ -10251,119 +10251,125 @@ local function setupKillaura()
                         break
                     end
                     local heldItem, itemMeta, autoSwing = getKillauraWeapon()
-                    if not heldItem or not itemMeta then
-                        store.KillauraTarget = nil
-                    else
-                        if not limitToItemsToggle.Enabled then
-                            local hand = store.hand
-                            if not hand or hand.tool ~= heldItem.tool then
-                                for slot, item in store.inventory.inventory.items do
-                                    if item and item.tool == heldItem.tool then
-                                        bedwars.Store:dispatch({
-                                            type = 'InventorySelectHotbarSlot',
-                                            slot = slot
-                                        })
-                                        vapeEvents.InventoryChanged.Event:Wait()
-                                        break
-                                    end
+                    local character = entitylib.character
+                    local origin = character and character.RootPart and character.RootPart.Position or nil
+
+                    if heldItem and itemMeta and not limitToItemsToggle.Enabled then
+                        local hand = store.hand
+                        if not hand or hand.tool ~= heldItem.tool then
+                            for slot, item in store.inventory.inventory.items do
+                                if item and item.tool == heldItem.tool then
+                                    bedwars.Store:dispatch({
+                                        type = 'InventorySelectHotbarSlot',
+                                        slot = slot
+                                    })
+                                    vapeEvents.InventoryChanged.Event:Wait()
+                                    break
                                 end
                             end
                         end
+                    end
 
-                        local character = entitylib.character
-                        if character and character.RootPart then
-                            local origin = character.RootPart.Position
-                            local sortFunction
-                            if targetModeDropdown.Value == 'Damage' then
-                                sortFunction = function(a, b)
-                                    return (a.Entity.Health or 0) < (b.Entity.Health or 0)
-                                end
-                            else
-                                sortFunction = function(a, b)
-                                    return a.Magnitude < b.Magnitude
+                    local target
+                    if heldItem and itemMeta and origin then
+                        local sortFunction
+                        if targetModeDropdown.Value == 'Damage' then
+                            sortFunction = function(a, b)
+                                return (a.Entity.Health or 0) < (b.Entity.Health or 0)
+                            end
+                        else
+                            sortFunction = function(a, b)
+                                return a.Magnitude < b.Magnitude
+                            end
+                        end
+                        target = entitylib.EntityPosition({
+                            Origin = origin,
+                            Range = attackRangeSlider.Value,
+                            Wallcheck = targets.Walls.Enabled or nil,
+                            Part = 'RootPart',
+                            Players = targets.Players.Enabled,
+                            NPCs = targets.NPCs.Enabled,
+                            Limit = 1,
+                            Sort = sortFunction,
+                        })
+                    end
+
+                    local locked = false
+                    if target and target.RootPart and target.RootPart.Parent and origin then
+                        local toTarget = target.RootPart.Position - origin
+                        local toTargetMagnitude = toTarget.Magnitude
+                        if toTargetMagnitude <= bedwars.CombatConstant.RAYCAST_SWORD_CHARACTER_DISTANCE then
+                            locked = true
+                        end
+                        if locked then
+                            if faceTargetToggle.Enabled then
+                                local flatToTarget = toTarget * Vector3.new(1, 0, 1)
+                                if 0 < flatToTarget.Magnitude then
+                                    character.RootPart.CFrame = CFrame.lookAlong(character.RootPart.Position, flatToTarget)
                                 end
                             end
-                            local target = entitylib.EntityPosition({
-                                Origin = origin,
-                                Range = attackRangeSlider.Value,
-                                Wallcheck = targets.Walls.Enabled or nil,
-                                Part = 'RootPart',
-                                Players = targets.Players.Enabled,
-                                NPCs = targets.NPCs.Enabled,
-                                Limit = 1,
-                                Sort = sortFunction,
-                            })
 
-                            store.KillauraTarget = target
+                            local aimSource = (inputService.KeyboardEnabled and workspace.CurrentCamera) or character.RootPart
+                            local lookDirection = aimSource.CFrame.LookVector * Vector3.new(1, 0, 1)
+                            local flatToTarget = toTarget * Vector3.new(1, 0, 1)
+                            local facing = 0
+                            if 0 < lookDirection.Magnitude and 0 < flatToTarget.Magnitude then
+                                facing = (lookDirection / lookDirection.Magnitude):Dot(flatToTarget / flatToTarget.Magnitude)
+                            end
 
-                            if target and target.RootPart and target.RootPart.Parent then
-                                character.Humanoid.AutoRotate = false
-
-                                if faceTargetToggle.Enabled then
-                                    local flatToTarget = (target.RootPart.Position - origin) * Vector3.new(1, 0, 1)
-                                    if 0 < flatToTarget.Magnitude then
-                                        character.RootPart.CFrame = CFrame.lookAlong(character.RootPart.Position, flatToTarget)
-                                    end
-                                end
-
-                                local aimSource = (inputService.KeyboardEnabled and workspace.CurrentCamera) or character.RootPart
-                                local lookDirection = aimSource.CFrame.LookVector * Vector3.new(1, 0, 1)
-                                local flatToTarget = (target.RootPart.Position - origin) * Vector3.new(1, 0, 1)
-                                local facing = 0
-                                if 0 < lookDirection.Magnitude and 0 < flatToTarget.Magnitude then
-                                    facing = (lookDirection / lookDirection.Magnitude):Dot(flatToTarget / flatToTarget.Magnitude)
-                                end
-
-                                if not (facing < math.cos(math.rad(maxAngleSlider.Value) / 2)) then
-                                    local toTarget = target.RootPart.Position - origin
-                                    local toTargetMagnitude = toTarget.Magnitude
-
-                                    if not noSwingToggle.Enabled and autoSwing then
-                                        local sinceSwing = tick() - bedwars.SwordController.lastSwing
-                                        local swingDelay = math.max(swingTimeSlider.Value, 0.11)
-                                        if swingDelay <= sinceSwing then
-                                            bedwars.SwordController:playSwordEffect(itemMeta, false)
-                                            bedwars.SwordController.lastSwing = tick()
-                                            if customAnimationToggle.Enabled then
-                                                killauraAnimating = true
-                                                task.delay(0.15, function()
-                                                    killauraAnimating = false
-                                                end)
-                                            end
+                            if not (facing < math.cos(math.rad(maxAngleSlider.Value) / 2)) then
+                                if not noSwingToggle.Enabled and autoSwing then
+                                    local sinceSwing = tick() - bedwars.SwordController.lastSwing
+                                    local swingDelay = math.max(swingTimeSlider.Value, 0.11)
+                                    if swingDelay <= sinceSwing then
+                                        bedwars.SwordController:playSwordEffect(itemMeta, false)
+                                        bedwars.SwordController.lastSwing = tick()
+                                        if customAnimationToggle.Enabled then
+                                            killauraAnimating = true
+                                            task.delay(0.15, function()
+                                                killauraAnimating = false
+                                            end)
                                         end
                                     end
-
-                                    if autoSwing
-                                        and toTargetMagnitude <= bedwars.CombatConstant.RAYCAST_SWORD_CHARACTER_DISTANCE
-                                        and bedwars.SwordController:getRemainingSwingCooldown(heldItem.tool.Name) <= 0
-                                        and (attackSpeedSlider.Value <= 0 or attackSpeedSlider.Value <= tick() - lastAttackTime)
-                                        and math.random(0, 100) <= hitChanceSlider.Value
-                                    then
-                                        local cursorDirection = CFrame.lookAt(origin, target.RootPart.Position).LookVector
-                                        local selfPosition = origin + cursorDirection * math.max(toTargetMagnitude - 14.4, 0)
-
-                                        bedwars.SwordController.lastAttack = workspace:GetServerTimeNow()
-                                        lastAttackTime = tick()
-
-                                        bedwars.Client:Get(remotes.AttackEntity):SendToServer({
-                                            weapon = heldItem.tool,
-                                            chargedAttack = {chargeRatio = 0},
-                                            entityInstance = target.Character,
-                                            validate = {
-                                                raycast = {
-                                                    cameraPosition = {value = workspace.CurrentCamera.CFrame.Position},
-                                                    cursorDirection = {value = cursorDirection},
-                                                },
-                                                targetPosition = {value = target.Character:GetPivot().Position},
-                                                selfPosition = {value = selfPosition},
-                                            },
-                                        })
-                                    end
                                 end
-                            else
-                                character.Humanoid.AutoRotate = true
+
+                                if autoSwing
+                                    and bedwars.SwordController:getRemainingSwingCooldown(heldItem.tool.Name) <= 0
+                                    and (attackSpeedSlider.Value <= 0 or attackSpeedSlider.Value <= tick() - lastAttackTime)
+                                    and math.random(0, 100) <= hitChanceSlider.Value
+                                then
+                                    local cursorDirection = CFrame.lookAt(origin, target.RootPart.Position).LookVector
+                                    local selfPosition = origin + cursorDirection * math.max(toTargetMagnitude - 14.4, 0)
+
+                                    bedwars.SwordController.lastAttack = workspace:GetServerTimeNow()
+                                    lastAttackTime = tick()
+
+                                    bedwars.Client:Get(remotes.AttackEntity):SendToServer({
+                                        weapon = heldItem.tool,
+                                        chargedAttack = {chargeRatio = 0},
+                                        entityInstance = target.Character,
+                                        validate = {
+                                            raycast = {
+                                                cameraPosition = {value = workspace.CurrentCamera.CFrame.Position},
+                                                cursorDirection = {value = cursorDirection},
+                                            },
+                                            targetPosition = {value = target.Character:GetPivot().Position},
+                                            selfPosition = {value = selfPosition},
+                                        },
+                                    })
+                                end
                             end
                         end
+                    end
+
+                    if locked then
+                        character.Humanoid.AutoRotate = false
+                        store.KillauraTarget = target
+                    else
+                        if character and character.Humanoid then
+                            character.Humanoid.AutoRotate = true
+                        end
+                        store.KillauraTarget = nil
                     end
                 until not killaura.Enabled
             end)
