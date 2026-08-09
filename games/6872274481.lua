@@ -10160,13 +10160,6 @@ local function setupKillaura()
 	local targetBoxes = {}
 
 	local function getHeldWeapon()
-		local hand = store.hand
-		if hand and hand.tool then
-			local meta = bedwars.ItemMeta[hand.tool.Name]
-			if meta and meta.sword then
-				return hand.tool, meta
-			end
-		end
 		local character = lplr.Character
 		if character then
 			local tool = character:FindFirstChildOfClass('Tool')
@@ -10175,6 +10168,13 @@ local function setupKillaura()
 				if meta and meta.sword then
 					return tool, meta
 				end
+			end
+		end
+		local hand = store.hand
+		if hand and hand.tool and hand.tool.Parent then
+			local meta = bedwars.ItemMeta[hand.tool.Name]
+			if meta and meta.sword then
+				return hand.tool, meta
 			end
 		end
 	end
@@ -10309,8 +10309,14 @@ local function setupKillaura()
 	local function sendAttack(target, weapon, meta, origin, shiftY)
 		local targetRoot = target.RootPart
 		local aimPoint = targetRoot.Position + Vector3.new(0, shiftY or 0, 0)
+
 		if predictToggle.Enabled then
-			aimPoint = predictHitPoint(target, targetRoot, aimPoint)
+			local predicted = pcall(function()
+				aimPoint = predictHitPoint(target, targetRoot, aimPoint)
+			end)
+			if not predicted or aimPoint ~= aimPoint then
+				aimPoint = targetRoot.Position + Vector3.new(0, shiftY or 0, 0)
+			end
 		end
 
 		local camera = workspace.CurrentCamera
@@ -10354,8 +10360,8 @@ local function setupKillaura()
 						break
 					end
 					pcall(function()
-						local character = entitylib.character
-						if not (character and character.RootPart and character.Humanoid and canAttack()) then
+						local character = lplr.Character
+						if not (character and character.RootPart and character.RootPart.Parent and character.Humanoid and canAttack()) then
 							store.KillauraTarget = nil
 							return
 						end
@@ -10401,14 +10407,23 @@ local function setupKillaura()
 							end
 						end
 
-						if tick() - lastBurst < attackDelaySlider:GetRandomValue() then
+						local packets = hitRegSlider.Value
+						local fullPower = 35 <= packets
+						local spread = fullPower and 9 or 6
+						if fullPower then
+							packets = packets * 2
+						end
+
+						if not fullPower and tick() - lastBurst < attackDelaySlider:GetRandomValue() then
 							return
 						end
 						lastBurst = tick()
 
 						if not noSwingToggle.Enabled then
-							bedwars.SwordController:playSwordEffect(meta, false)
-							bedwars.SwordController.lastSwing = tick()
+							pcall(function()
+								bedwars.SwordController:playSwordEffect(meta, false)
+								bedwars.SwordController.lastSwing = tick()
+							end)
 							if swingAnimToggle.Enabled then
 								pcall(function()
 									local wrist = workspace.CurrentCamera.Viewmodel.RightHand.RightWrist
@@ -10431,14 +10446,18 @@ local function setupKillaura()
 							end
 						end
 
-						local packets = hitRegSlider.Value
 						for i = 1, math.min(maxTargetsSlider.Value, #list) do
 							if math.random(0, 100) <= hitChanceSlider.Value then
 								local target = list[i]
 								for p = 1, packets do
-									local shiftY = packets == 1 and 0 or (p - 1) / (packets - 1) * 6 - 3
-									sendAttack(target, weapon, meta, origin, shiftY)
-									if p < packets then
+									local shiftY = packets == 1 and 0 or (p - 1) / (packets - 1) * spread - spread / 2
+									local sent = pcall(function()
+										sendAttack(target, weapon, meta, origin, shiftY)
+									end)
+									if not sent then
+										break
+									end
+									if p < packets and not fullPower then
 										task.wait(0.012)
 									end
 								end
@@ -10483,7 +10502,7 @@ local function setupKillaura()
 	})
 
 	hitRegSlider = killaura:CreateSlider({
-		Name = 'Hit reg',
+		Name = 'Hit Registration',
 		Min = 1,
 		Max = 36,
 		Default = 36,
@@ -10527,11 +10546,6 @@ local function setupKillaura()
 		Name = 'Packet jitter',
 		Default = true,
 		Tooltip = 'Randomizes each packet slightly to avoid flags',
-	})
-
-	limitToItemsToggle = killaura:CreateToggle({
-		Name = 'Limit to items',
-		Tooltip = 'Only attacks while a sword is held',
 	})
 
 	swingOnlyToggle = killaura:CreateToggle({
@@ -10582,8 +10596,12 @@ local function setupKillaura()
 		DefaultOpacity = 0.5,
 		Visible = false,
 	})
-end
 
+	limitToItemsToggle = killaura:CreateToggle({
+		Name = 'Limit to items',
+		Tooltip = 'Only attacks while a sword is held',
+	})
+end
 setupKillaura()
 
 local function isGUIOpen()
