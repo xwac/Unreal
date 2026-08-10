@@ -8257,13 +8257,29 @@ run(function()
 		})
 		
 		if list and isValidTarget(list) then
-			table.insert(targets, list)
+			if Angle.Value < 360 then
+				local delta = (list.RootPart.Position - entitylib.character.RootPart.Position) * Vector3.new(1, 0, 1)
+				local localFacing = entitylib.character.RootPart.CFrame.LookVector * Vector3.new(1, 0, 1)
+				local angle = math.acos(math.clamp(localFacing:Dot(delta.Unit), -1, 1))
+				if angle > math.rad(Angle.Value / 2) then
+					list = nil
+				end
+			end
+			if list then table.insert(targets, list) end
 		end
 		
 		if MultiTarget.Enabled then
 			for _, ent in entitylib.List do
 				if #targets >= MaxTargets.Value then break end
 				if ent ~= list and isValidTarget(ent) and (ent.RootPart.Position - entitylib.character.RootPart.Position).Magnitude <= Range.Value then
+					if Angle.Value < 360 then
+						local delta = (ent.RootPart.Position - entitylib.character.RootPart.Position) * Vector3.new(1, 0, 1)
+						local localFacing = entitylib.character.RootPart.CFrame.LookVector * Vector3.new(1, 0, 1)
+						local angle = math.acos(math.clamp(localFacing:Dot(delta.Unit), -1, 1))
+						if angle > math.rad(Angle.Value / 2) then
+							continue
+						end
+					end
 					table.insert(targets, ent)
 				end
 			end
@@ -8288,6 +8304,10 @@ run(function()
 		
 		if SwingMode.Value == 'Legit' then
 			if bedwars.SwordController.isClickingTooFast and bedwars.SwordController:isClickingTooFast() then return end
+		elseif SwingMode.Value == 'Silent' then
+			if bedwars.SwordController.isClickingTooFast then
+				bedwars.SwordController.isClickingTooFast = function() return false end
+			end
 		end
 		
 		local delta = target.RootPart.Position - entitylib.character.RootPart.Position
@@ -8312,23 +8332,29 @@ run(function()
 			flatDelta = delta * Vector3.new(1, 0, 1)
 		end
 		
-		if SwingAnim.Enabled then
+		if SwingAnim.Value ~= 'None' then
 			if SwingAnim.Value == 'Random' then
 				swingDir = math.random() > 0.5 and 1 or -1
 			elseif SwingAnim.Value == 'Alternate' then
 				swingDir = -swingDir
 			end
-			bedwars.SwordController.lastSwing = os.clock()
-			bedwars.SwordController:swingSwordAtMouse(flatDelta.Unit * Range.Value, swingDir)
+			if SwingMode.Value ~= 'Silent' then
+				bedwars.SwordController.lastSwing = os.clock()
+				bedwars.SwordController:swingSwordAtMouse(flatDelta.Unit * Range.Value, swingDir)
+			else
+				bedwars.SwordController:swingSwordAtMouse(flatDelta.Unit * Range.Value)
+			end
 		else
 			bedwars.SwordController:swingSwordAtMouse(flatDelta.Unit * Range.Value)
 		end
 		
 		if Crit.Enabled then
-			if JumpCrit.Enabled and entitylib.character.Humanoid.FloorMaterial == Enum.Material.Air then
-				bedwars.SwordController.isClickingTooFast = function() return false end
-			end
-			if entitylib.character.Humanoid.FloorMaterial ~= Enum.Material.Air and (not JumpCrit.Enabled or math.random() < 0.5) then
+			local onGround = entitylib.character.Humanoid.FloorMaterial ~= Enum.Material.Air
+			if JumpCrit.Enabled then
+				if onGround and math.random() < 0.7 then
+					entitylib.character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+				end
+			elseif onGround and math.random() < 0.5 then
 				entitylib.character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
 			end
 		end
@@ -8342,7 +8368,7 @@ run(function()
 			end
 		end
 		
-		if HitBox.Enabled then
+		if HitBox.Value > 0 then
 			pcall(function() bedwars.CombatConstant.RAYCAST_SWORD_CHARACTER_DISTANCE = Range.Value + HitBox.Value end)
 		end
 		
@@ -9323,19 +9349,19 @@ end)
 				if damage.damageType == 0 and damage.fromEntity then
 					local player = playersService:GetPlayerFromCharacter(damage.fromEntity)
 					if player and player ~= lplr then
-						if os.clock() - (lastHit[player] or 0) <= 0.28 then
+						if os.clock() - (lastHit[player] or 0) <= 0.15 then
 							hits[player] = (hits[player] or 0) + 1
 
-							task.delay(60, function()
+							task.delay(30, function()
 								if cheatDetector.Enabled and hits[player] then
 									hits[player] = math.max(hits[player] - 1, 0)
 								end
 							end)
 
-							if hits[player] > 2 then
+							if hits[player] > 5 then
 								notify(
 									'CheatDetector',
-									damage.fromEntity.Name .. ' may be using killaura (went over 34 hits)',
+									damage.fromEntity.Name .. ' may be using killaura (excessive hit rate)',
 									10,
 									'alert'
 								)
@@ -9361,12 +9387,12 @@ end)
 
 						local hand = (store.inventories[player] or {}).hand
 						local sword = hand and hand.tool and (bedwars.ItemMeta[hand.tool.Name] or {}).sword or nil
-						local range = (sword and sword.attackRange or 14.4) + 4
+						local range = (sword and sword.attackRange or 14.4) + 6
 
-						if range * (0.99 + store.ping.total) < distance then
+						if range * (0.95 + store.ping.total) < distance then
 							notify(
 								'CheatDetector',
-								damage.fromEntity.Name .. ' may be using reach (went over 15 studs of range)',
+								damage.fromEntity.Name .. ' may be using reach',
 								10,
 								'alert'
 							)
