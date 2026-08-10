@@ -8889,7 +8889,7 @@ run(function()
 						if player and (not positions[player] or positions[player].Time < tick()) then
 							local flatPosition = target.RootPart.Position * Vector3.new(1, 0, 1)
 							local previous = positions[player]
-							if previous then
+							if previous and previous.Delta then
 								local lastTeleported = player:GetAttribute('LastTeleported') or 0
 								if workspace:GetServerTimeNow() - lastTeleported > 0.4 then
 									local travelled = (flatPosition - previous.Position) / previous.Delta
