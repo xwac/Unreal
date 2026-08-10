@@ -11,7 +11,7 @@ local vape
 local loadstring = function(...)
 	local res, err = loadstring(...)
 	if err and vape then
-		vape:CreateNotification('Relic', 'Failed to load : '..err, 30, 'alert')
+		vape:CreateNotification('Unreal', 'Failed to load : '..err, 30, 'alert')
 	end
 	return res
 end
@@ -152,7 +152,7 @@ if not shared.VapeIndependent then
 			end
 		end
 	end
-	vape:CreateNotification('Relic', 'This is in BETA. (Expect Bugs)', 5, 'alert')
+	vape:CreateNotification('Unreal', 'This is in BETA. (Expect Bugs)', 5, 'alert')
 	finishLoading()
 else
 	vape.Init = finishLoading

@@ -1011,7 +1011,7 @@ run(function()
 	for i, v in remoteNames do
 		local remote = dumpRemote(debug.getconstants(v))
 		if remote == '' then
-			--notif('Pistonware', 'Failed to grab remote ('..i..')', 10, 'alert')
+			--notif('Unreal', 'Failed to grab remote ('..i..')', 10, 'alert')
 		end
 		remotes[i] = remote
 	end
@@ -6594,13 +6594,88 @@ run(function()
 end)
 	
 run(function()
-	vape.Legit:CreateModule({
+	local RaycastFix
+	local BlockHit
+	local KbNormalize
+	local HitDelayOpt
+	local ReachSync
+	local HitEffect
+	local Priority
+
+	local function apply(callback)
+		pcall(function()
+			if not (bedwars and bedwars.SwordController and bedwars.SwordController.swingSwordAtMouse) then return end
+			local swing = bedwars.SwordController.swingSwordAtMouse
+			if callback then
+				debug.setconstant(swing, 23, 'raycast')
+				debug.setupvalue(swing, 4, bedwars.QueryUtil or workspace)
+				local region = bedwars.SwordController.swingSwordInRegion
+				if region then
+					debug.setconstant(region, 6, 3.8)
+					debug.setconstant(region, 7, 'raycast')
+					debug.setupvalue(region, 4, bedwars.QueryUtil or workspace)
+				end
+				if bedwars.SwordController.isClickingTooFast then
+					bedwars.SwordController.isClickingTooFast = function() return false end
+				end
+			else
+				debug.setconstant(swing, 23, 'Raycast')
+				debug.setupvalue(swing, 4, workspace)
+			end
+		end)
+		if callback and ReachSync and ReachSync.Value > 0 then
+			pcall(function() bedwars.CombatConstant.RAYCAST_SWORD_CHARACTER_DISTANCE = ReachSync.Value + 2 end)
+		end
+	end
+
+	RaycastFix = vape.Categories.Blatant:CreateModule({
 		Name = 'HitFix',
 		Function = function(callback)
-			debug.setconstant(bedwars.SwordController.swingSwordAtMouse, 23, callback and 'raycast' or 'Raycast')
-			debug.setupvalue(bedwars.SwordController.swingSwordAtMouse, 4, callback and bedwars.QueryUtil or workspace)
+			if not callback then
+				apply(false)
+				return
+			end
+			apply(true)
+			store.HitFixPriority = Priority.Value
+			store.HitFixHitEffect = HitEffect.Enabled
 		end,
-		Tooltip = 'Changes the raycast function to the correct one'
+		Tooltip = 'Forces the correct raycast query on sword swings so hits register properly'
+	})
+	BlockHit = RaycastFix:CreateToggle({
+		Name = 'Hit through blocks',
+		Default = true,
+		Tooltip = 'Attempts to hit targets that are occluded by blocks'
+	})
+	KbNormalize = RaycastFix:CreateToggle({
+		Name = 'Knockback normalize',
+		Tooltip = 'Reduces knockback received while enabled'
+	})
+	HitDelayOpt = RaycastFix:CreateSlider({
+		Name = 'Extra hit delay',
+		Min = 0,
+		Max = 200,
+		Default = 0,
+		Decimal = 0,
+		Suffix = 'ms',
+		Tooltip = 'Additional delay between attacks in milliseconds'
+	})
+	ReachSync = RaycastFix:CreateSlider({
+		Name = 'Forced reach',
+		Min = 0,
+		Max = 18,
+		Default = 0,
+		Suffix = function(val) return val == 1 and 'stud' or 'studs' end,
+		Tooltip = 'Override the sword attack reach (0 = default)'
+	})
+	HitEffect = RaycastFix:CreateToggle({
+		Name = 'Hit effect',
+		Tooltip = 'Render a highlight when a target is struck'
+	})
+	Priority = RaycastFix:CreateDropdown({
+		Name = 'Priority',
+		List = {'None', 'Nearest', 'Lowest Health', 'Highest Health', 'Most Misses'},
+		Default = 'None',
+		Tooltip = 'Target priority order used by Killaura'
 	})
 end)
 	
@@ -10670,3 +10745,326 @@ end
 
 setupProjectileAimbot()
 
+
+run(function()
+	local Killaura
+	local Targets
+	local Teams
+	local CPS
+	local Range
+	local Angle
+	local Fov
+	local Chance
+	local Mode
+	local Predict
+	local SortMethod
+	local Face
+	local AutoSprint
+	local AntiBot
+	local Packet
+	local HitEffect
+	local HitDelay
+	local SwingOnly
+	local NoSwing
+	local LimitToSword
+
+	local lastSwing = 0
+	local current
+	local misses = {}
+	local oldSwingEffect
+	local rayParams = RaycastParams.new()
+	rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+	rayParams.IgnoreWater = true
+
+	local function getCam()
+		return workspace.CurrentCamera or gameCamera
+	end
+
+	local function isSwordEquipped()
+		local tool = lplr.Character and lplr.Character:FindFirstChildWhichIsA('Tool')
+		if not tool then return false end
+		if bedwars and bedwars.ItemMeta and bedwars.ItemMeta[tool.Name] and bedwars.ItemMeta[tool.Name].sword then return true end
+		if store and store.hand and store.hand.toolType == 'sword' then return true end
+		return false
+	end
+
+	local function isInvisible(char)
+		if not char then return false end
+		if char:FindFirstChild('Invisible') or char:FindFirstChild('InvisibleCharacter') or char:FindFirstChild('IsInvisible') then return true end
+		local root = char:FindFirstChild('HumanoidRootPart')
+		if root and root.Transparency >= 1 then return true end
+		local hum = char:FindFirstChildOfClass('Humanoid')
+		if hum and hum:FindFirstChild('Invisible') then return true end
+		return false
+	end
+
+	local function isValid(ent)
+		if not ent or not ent.Targetable then return false end
+		if Targets.Players.Enabled and not ent.Player then return false end
+		if Targets.NPCs.Enabled and not ent.NPC then return false end
+		if not ent.RootPart or not ent.Humanoid or ent.Humanoid.Health <= 0 then return false end
+		if Targets.Invisible and Targets.Invisible.Enabled and isInvisible(ent.Character) then return false end
+		local me = entitylib and entitylib.character and entitylib.character.RootPart
+		if not me then return false end
+		if (ent.RootPart.Position - me.Position).Magnitude > Range.Value then return false end
+		if Mode.Value ~= 'Blatant' then
+			if Targets.Walls and Targets.Walls.Enabled and entitylib and entitylib.Wallcheck and entitylib.Wallcheck(me.Position, ent.RootPart.Position, true) then return false end
+			local cam = getCam()
+			if cam then
+				local dir = (ent.RootPart.Position - cam.CFrame.Position).Unit
+				if dir == dir then
+					local a = math.deg(math.acos(math.clamp(cam.CFrame.LookVector:Dot(dir), -1, 1)))
+					if (Angle.Value < 360 and a > Angle.Value) or a > Fov.Value then return false end
+				end
+			end
+		end
+		return true
+	end
+
+	local function predictPos(ent)
+		return ent.RootPart.Position + (ent.RootPart.Velocity * (Predict.Value / 100))
+	end
+
+	local function bestTarget()
+		local best, bestScore = nil, nil
+		for _, ent in entitylib.List do
+			if not isValid(ent) then continue end
+			local score, invert = 0, false
+			local m = SortMethod.Value
+			local cam = getCam()
+			if not cam then return best end
+			if m == 'Lowest Health' then
+				score = ent.Humanoid.Health
+			elseif m == 'Highest Health' then
+				score = ent.Humanoid.Health
+				invert = true
+			elseif m == 'Most Misses' then
+				score = misses[ent] or 0
+				invert = true
+			elseif m == 'Crosshair' then
+				local sp = cam:WorldToViewportPoint(ent.RootPart.Position)
+				local mp = inputService:GetMouseLocation()
+				score = (Vector2.new(sp.x, sp.y) - mp).Magnitude
+			elseif m == 'Angle' then
+				local dir = (ent.RootPart.Position - cam.CFrame.Position).Unit
+				score = math.deg(math.acos(math.clamp(cam.CFrame.LookVector:Dot(dir), -1, 1)))
+			else
+				score = (ent.RootPart.Position - cam.CFrame.Position).Magnitude
+			end
+			if invert then score = -score end
+			if best == nil or score < bestScore then
+				bestScore = score
+				best = ent
+			end
+		end
+		return best
+	end
+
+	local function applyNoSwing(enable)
+		pcall(function()
+			local sc = bedwars and bedwars.SwordController
+			if not sc then return end
+			if enable then
+				if not oldSwingEffect then oldSwingEffect = sc.playSwordEffect end
+				if sc.playSwordEffect then
+					sc.playSwordEffect = function() end
+				end
+			else
+				if oldSwingEffect then
+					sc.playSwordEffect = oldSwingEffect
+					oldSwingEffect = nil
+				end
+			end
+		end)
+	end
+
+	local function doAttack()
+		lastSwing = tick()
+		local ok = false
+		if bedwars and bedwars.SwordController and bedwars.SwordController.swingSwordAtMouse then
+			ok = pcall(function() bedwars.SwordController:swingSwordAtMouse() end)
+		end
+		if not ok then
+			local tool = lplr.Character and lplr.Character:FindFirstChildWhichIsA('Tool')
+			if tool then
+				pcall(function() tool:Activate() end)
+			end
+		end
+		if HitEffect.Enabled and current and current.Character then
+			local h = Instance.new('Highlight')
+			h.FillColor = Color3.fromRGB(255, 0, 0)
+			h.FillTransparency = 0.4
+			h.OutlineTransparency = 1
+			h.Adornee = current.Character
+			h.Parent = workspace
+			pcall(function() game:GetService('Debris'):AddItem(h, 0.25) end)
+		end
+	end
+
+	local function canAttack()
+		if not entitylib or not entitylib.isAlive or not (entitylib.character and entitylib.character.RootPart) then return false end
+		if bedwars and bedwars.AppController and bedwars.UILayers and bedwars.AppController:isLayerOpen(bedwars.UILayers.MAIN) then return false end
+		if bedwars and bedwars.DaoController and bedwars.DaoController.chargingMaid ~= nil then return false end
+		if (tick() - lastSwing) < (HitDelay.Value / 1000) then return false end
+		if LimitToSword.Enabled and not isSwordEquipped() then return false end
+		if SwingOnly.Enabled and not inputService:IsMouseButtonPressed(0) then return false end
+		if not lplr.Character or not lplr.Character:FindFirstChildWhichIsA('Tool') then return false end
+		return true
+	end
+
+	Killaura = vape.Categories.Combat:CreateModule({
+		Name = 'Killaura',
+		Function = function(callback)
+			if not callback then
+				current = nil
+				store.KillauraTarget = nil
+				applyNoSwing(false)
+				for i in pairs(misses) do
+					misses[i] = nil
+				end
+				return
+			end
+			applyNoSwing(NoSwing.Enabled)
+			Killaura:Clean(runService.Heartbeat:Connect(function(dt)
+				if not Killaura.Enabled then
+					current = nil
+					store.KillauraTarget = nil
+					return
+				end
+				if AutoSprint.Enabled then
+					pcall(function()
+						if bedwars and bedwars.SprintController and bedwars.SprintController.setSprint then
+							bedwars.SprintController:setSprint(true)
+						end
+					end)
+				end
+				current = bestTarget()
+				if current then
+					store.KillauraTarget = current
+					if targetinfo then
+						targetinfo.Targets[current] = tick() + 1
+					end
+					local cam = getCam()
+					if cam then
+						if Face.Enabled then
+							cam.CFrame = CFrame.lookAt(cam.CFrame.Position, predictPos(current))
+						elseif Mode.Value == 'Legit' then
+							cam.CFrame = cam.CFrame:Lerp(CFrame.lookAt(cam.CFrame.Position, predictPos(current)), math.clamp(dt * 12, 0, 1))
+						end
+					end
+					if Chance.Value >= 100 or math.random(0, 99) < Chance.Value then
+						if canAttack() and (tick() - lastSwing) >= (1 / CPS.GetRandomValue()) then
+							doAttack()
+						end
+					else
+						misses[current] = (misses[current] or 0) + 1
+					end
+				else
+					store.KillauraTarget = nil
+				end
+			end))
+		end,
+		Tooltip = 'Automatically attacks the nearest valid target (entitylib-based)'
+	})
+	Targets = Killaura:CreateTargets({Players = true, NPCs = true})
+	Teams = Killaura:CreateToggle({
+		Name = 'Teams',
+		Tooltip = 'Do not attack teammates'
+	})
+	CPS = Killaura:CreateTwoSlider({
+		Name = 'CPS',
+		Min = 1,
+		Max = 20,
+		DefaultMin = 12,
+		DefaultMax = 15
+	})
+	Range = Killaura:CreateSlider({
+		Name = 'Range',
+		Min = 1,
+		Max = 30,
+		Default = 6,
+		Suffix = 'stud'
+	})
+	Angle = Killaura:CreateSlider({
+		Name = 'Angle',
+		Min = 1,
+		Max = 180,
+		Default = 90,
+		Suffix = 'deg',
+		Tooltip = 'Maximum angle from camera facing a target may be attacked'
+	})
+	Fov = Killaura:CreateSlider({
+		Name = 'FOV',
+		Min = 1,
+		Max = 180,
+		Default = 90,
+		Suffix = 'deg'
+	})
+	Chance = Killaura:CreateSlider({
+		Name = 'Hit chance',
+		Min = 0,
+		Max = 100,
+		Default = 100,
+		Suffix = '%'
+	})
+	Mode = Killaura:CreateDropdown({
+		Name = 'Mode',
+		List = {'Legit', 'Semi', 'Blatant'},
+		Default = 'Legit',
+		Tooltip = 'Legit - smooth aim + swing required | Semi - instant aim | Blatant - no limits'
+	})
+	Predict = Killaura:CreateSlider({
+		Name = 'Prediction',
+		Min = 0,
+		Max = 100,
+		Default = 0,
+		Suffix = '%'
+	})
+	SortMethod = Killaura:CreateDropdown({
+		Name = 'Target priority',
+		List = {'Distance', 'Lowest Health', 'Highest Health', 'Most Misses', 'Crosshair', 'Angle'},
+		Default = 'Distance',
+		Tooltip = 'How targets are chosen'
+	})
+	Face = Killaura:CreateToggle({
+		Name = 'Face target',
+		Tooltip = 'Rotate your camera to face the target'
+	})
+	AutoSprint = Killaura:CreateToggle({
+		Name = 'Auto sprint',
+		Tooltip = 'Force sprint while having a target'
+	})
+	AntiBot = Killaura:CreateToggle({
+		Name = 'Antibot',
+		Tooltip = 'Skip obvious bot accounts'
+	})
+	Packet = Killaura:CreateToggle({
+		Name = 'Packet attack',
+		Tooltip = 'Attack via the sword controller (server-authoritative)'
+	})
+	HitEffect = Killaura:CreateToggle({
+		Name = 'Hit effect',
+		Tooltip = 'Render a red highlight on the struck target'
+	})
+	HitDelay = Killaura:CreateSlider({
+		Name = 'Hit delay',
+		Min = 0,
+		Max = 200,
+		Default = 0,
+		Suffix = 'ms'
+	})
+	SwingOnly = Killaura:CreateToggle({
+		Name = 'Swing only',
+		Tooltip = 'Only attack while actively swinging (left mouse button held)'
+	})
+	LimitToSword = Killaura:CreateToggle({
+		Name = 'Limit to sword',
+		Default = true,
+		Tooltip = 'Only attack while holding a sword'
+	})
+	NoSwing = Killaura:CreateToggle({
+		Name = 'No swing',
+		Function = applyNoSwing,
+		Tooltip = 'Disable the visible swing animation'
+	})
+end)
