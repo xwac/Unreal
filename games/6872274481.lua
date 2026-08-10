@@ -2284,7 +2284,7 @@ run(function()
 		Function = function(callback)
 			if callback then
 				if Mode.Value == 'Sword' then
-					debug.setconstant(bedwars.SwordController.swingSwordInRegion, 6, (Expand.Value / 3))
+					pcall(function() bedwars.CombatConstant.RAYCAST_SWORD_CHARACTER_DISTANCE = (Expand.Value / 3) + 3.8 end)
 					set = true
 				else
 					HitBoxes:Clean(entitylib.Events.EntityAdded:Connect(createHitbox))
@@ -2300,7 +2300,7 @@ run(function()
 				end
 			else
 				if set then
-					debug.setconstant(bedwars.SwordController.swingSwordInRegion, 6, 3.8)
+					pcall(function() bedwars.CombatConstant.RAYCAST_SWORD_CHARACTER_DISTANCE = 3.8 end)
 					set = nil
 				end
 				for _, part in objects do
@@ -2331,7 +2331,7 @@ run(function()
 		Function = function(val)
 			if HitBoxes.Enabled then
 				if Mode.Value == 'Sword' then
-					debug.setconstant(bedwars.SwordController.swingSwordInRegion, 6, (val / 3))
+					pcall(function() bedwars.CombatConstant.RAYCAST_SWORD_CHARACTER_DISTANCE = (val / 3) + 3.8 end)
 				else
 					for _, part in objects do
 						part.Size = Vector3.new(3, 6, 3) + Vector3.one * (val / 5)
