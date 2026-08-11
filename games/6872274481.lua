@@ -459,26 +459,35 @@ local kitorder = {
 
 local sortmethods = {
 	Damage = function(a, b)
-		return a.Entity.Character:GetAttribute('LastDamageTakenTime') < b.Entity.Character:GetAttribute('LastDamageTakenTime')
+		local ac = a.Entity and a.Entity.Character
+		local bc = b.Entity and b.Entity.Character
+		if not ac or not bc then return ac ~= nil end
+		return (ac:GetAttribute('LastDamageTakenTime') or 0) < (bc:GetAttribute('LastDamageTakenTime') or 0)
 	end,
 	Threat = function(a, b)
+		if not a.Entity or not b.Entity then return a.Entity ~= nil end
 		return getStrength(a.Entity) > getStrength(b.Entity)
 	end,
 	Kit = function(a, b)
-		return (a.Entity.Player and kitorder[a.Entity.Player:GetAttribute('PlayingAsKit')] or 0) > (b.Entity.Player and kitorder[b.Entity.Player:GetAttribute('PlayingAsKit')] or 0)
+		local ap = a.Entity and a.Entity.Player
+		local bp = b.Entity and b.Entity.Player
+		local av = ap and kitorder[ap:GetAttribute('PlayingAsKit')] or 0
+		local bv = bp and kitorder[bp:GetAttribute('PlayingAsKit')] or 0
+		return av > bv
 	end,
 	Health = function(a, b)
-		return a.Entity.Health < b.Entity.Health
+		if not a.Entity or not b.Entity then return a.Entity ~= nil end
+		return (a.Entity.Health or 0) < (b.Entity.Health or 0)
 	end,
 	Angle = function(a, b)
-		-- acos is monotonically DECREASING on [-1, 1], so comparing the raw dots
-		-- the other way round gives the identical ordering without two acos calls
-		-- per comparison -- this runs O(n log n) per Heartbeat when sorting by Angle
-		local selfroot = entitylib.character.RootPart
+		local selfroot = entitylib.character and entitylib.character.RootPart
+		if not selfroot then return false end
+		if not a.RootPart then return false end
+		if not b.RootPart then return true end
 		local selfrootpos = selfroot.Position
 		local localfacing = selfroot.CFrame.LookVector * Vector3.new(1, 0, 1)
-		local dota = localfacing:Dot(((a.Entity.RootPart.Position - selfrootpos) * Vector3.new(1, 0, 1)).Unit)
-		local dotb = localfacing:Dot(((b.Entity.RootPart.Position - selfrootpos) * Vector3.new(1, 0, 1)).Unit)
+		local dota = localfacing:Dot(((a.RootPart.Position - selfrootpos) * Vector3.new(1, 0, 1)).Unit)
+		local dotb = localfacing:Dot(((b.RootPart.Position - selfrootpos) * Vector3.new(1, 0, 1)).Unit)
 		return dota > dotb
 	end
 }
@@ -2414,6 +2423,7 @@ run(function()
 	local AnimDelay, AnimTween, armC0 = tick()
 	local AttackRemote = {FireServer = function() end}
 	local Attacking = false
+	local lastPlayerSwing = 0
 	task.spawn(function()
 		AttackRemote = bedwars.Client:Get(remotes.AttackEntity).instance
 	end)
@@ -2427,19 +2437,23 @@ run(function()
 			if bedwars.AppController:isLayerOpen(bedwars.UILayers.MAIN) then return false end
 		end
 
-		local sword = Limit.Enabled and store.hand or store.tools.sword
-		if not sword or not sword.tool then return false end
-
-		local meta = bedwars.ItemMeta[sword.tool.Name]
-		if Limit.Enabled then
-			if store.hand.toolType ~= 'sword' or bedwars.DaoController.chargingMaid then return false end
-		end
-
 		if LegitAura.Enabled then
-			if (tick() - bedwars.SwordController.lastSwing) > 0.2 then return false end
+			if (os.clock() - lastPlayerSwing) > 0.2 then return false end
 		end
 
-		return sword, meta
+		if Limit.Enabled then
+			if not store.hand or not store.hand.tool or store.hand.toolType ~= 'sword' then return false end
+			if bedwars.DaoController.chargingMaid then return false end
+			local meta = bedwars.ItemMeta[store.hand.tool.Name]
+			return store.hand, meta
+		else
+			local sword = store.tools.sword
+			if not sword or not sword.tool then return false end
+			local meta = bedwars.ItemMeta[sword.tool.Name]
+			return sword, meta
+		end
+
+		return false
 	end
 
 	local function fireProjectileAt(ent)
@@ -2479,6 +2493,13 @@ run(function()
 						lplr.PlayerGui.MobileUI['2'].Visible = Limit.Enabled
 					end)
 				end
+
+				vape:Clean(inputService.InputBegan:Connect(function(input, gameProcessed)
+					if gameProcessed then return end
+					if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+						lastPlayerSwing = os.clock()
+					end
+				end))
 
 				if Animation.Enabled then
 					task.spawn(function()
@@ -2524,6 +2545,19 @@ run(function()
 					Attacking = false
 					store.KillauraTarget = nil
 					if sword and entitylib.isAlive then
+						local rawSort = Sort.Value == 'Distance' and function(a, b)
+							local root = entitylib.character and entitylib.character.RootPart
+							if not root then return false end
+							if not a.RootPart then return false end
+							if not b.RootPart then return true end
+							local apos = a.RootPart.Position - root.Position
+							local bpos = b.RootPart.Position - root.Position
+							return apos.Magnitude < bpos.Magnitude
+						end or sortmethods[Sort.Value]
+						local safeSort = rawSort and function(a, b)
+							local ok, res = pcall(rawSort, a, b)
+							return ok and res or false
+						end
 						local plrs = entitylib.AllPosition({
 							Range = SwingRange.Value,
 							Wallcheck = Targets.Walls.Enabled or nil,
@@ -2531,15 +2565,7 @@ run(function()
 							Players = Targets.Players.Enabled,
 							NPCs = Targets.NPCs.Enabled,
 							Limit = MaxTargets.Value,
-							Sort = Sort.Value == 'Distance' and function(a, b)
-								local root = entitylib.character and entitylib.character.RootPart
-								if not root then return false end
-								if not a.RootPart then return false end
-								if not b.RootPart then return true end
-								local apos = a.RootPart.Position - root.Position
-								local bpos = b.RootPart.Position - root.Position
-								return apos.Magnitude < bpos.Magnitude
-							end or sortmethods[Sort.Value]
+							Sort = safeSort
 						})
 
 						if #plrs > 0 then
@@ -2638,7 +2664,7 @@ run(function()
 						v.Parent = attacked[i] and gameCamera or nil
 					end
 
-					if Face.Enabled and attacked[1] then
+					if Face.Enabled and attacked[1] and attacked[1].Entity and attacked[1].Entity.RootPart and entitylib.character and entitylib.character.RootPart then
 						local vec = attacked[1].Entity.RootPart.Position * Vector3.new(1, 0, 1)
 						entitylib.character.RootPart.CFrame = CFrame.lookAt(entitylib.character.RootPart.Position, Vector3.new(vec.X, entitylib.character.RootPart.Position.Y + 0.001, vec.Z))
 					end
