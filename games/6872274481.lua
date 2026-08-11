@@ -2534,6 +2534,8 @@ run(function()
 							Sort = Sort.Value == 'Distance' and function(a, b)
 								local root = entitylib.character and entitylib.character.RootPart
 								if not root then return false end
+								if not a.RootPart then return false end
+								if not b.RootPart then return true end
 								local apos = a.RootPart.Position - root.Position
 								local bpos = b.RootPart.Position - root.Position
 								return apos.Magnitude < bpos.Magnitude
@@ -2547,6 +2549,7 @@ run(function()
 							if not selfpos or not localfacing then continue end
 
 							for i, v in pairs(plrs) do
+								if not v.RootPart then continue end
 								if Attackable.Enabled and not v.Targetable then continue end
 								if HitChance.Value < 100 and math.random() > (HitChance.Value / 100) then continue end
 
