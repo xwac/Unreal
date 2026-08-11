@@ -2383,6 +2383,7 @@ run(function()
 	local UpdateRate
 	local MaxTargets
 	local HitChance
+	local AttackSpeed
 	local Mouse
 	local Swing
 	local GUI
@@ -2628,6 +2629,10 @@ run(function()
 												selfPosition = {value = pos}
 											}
 										})
+
+										if AttackSpeed.Value > 0 then
+											task.wait(AttackSpeed.Value)
+										end
 									end
 								end
 							end
@@ -2746,6 +2751,14 @@ run(function()
 		Max = 100,
 		Default = 100,
 		Suffix = '%'
+	})
+	AttackSpeed = Killaura:CreateSlider({
+		Name = 'Attack delay',
+		Min = 0,
+		Max = 1,
+		Decimal = 100,
+		Default = 0.05,
+		Suffix = function(val) return val == 1 and 'second' or 'seconds' end
 	})
 	FastHits = Killaura:CreateToggle({
 		Name = 'Fast Hits',
