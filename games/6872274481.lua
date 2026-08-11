@@ -2523,7 +2523,7 @@ run(function()
 					local attacked, sword, meta = {}, getAttackData()
 					Attacking = false
 					store.KillauraTarget = nil
-					if sword then
+					if sword and entitylib.isAlive then
 						local plrs = entitylib.AllPosition({
 							Range = SwingRange.Value,
 							Wallcheck = Targets.Walls.Enabled or nil,
@@ -2546,70 +2546,71 @@ run(function()
 							switchItem(sword.tool, 0)
 							local selfpos = entitylib.character and entitylib.character.RootPart and entitylib.character.RootPart.Position
 							local localfacing = entitylib.character and entitylib.character.RootPart and (entitylib.character.RootPart.CFrame.LookVector * Vector3.new(1, 0, 1))
-							if not selfpos or not localfacing then continue end
 
-							for i, v in pairs(plrs) do
-								if not v.RootPart then continue end
-								if Attackable.Enabled and not v.Targetable then continue end
-								if HitChance.Value < 100 and math.random() > (HitChance.Value / 100) then continue end
+							if selfpos and localfacing then
+								for i, v in pairs(plrs) do
+									if not v.RootPart then continue end
+									if Attackable.Enabled and not v.Targetable then continue end
+									if HitChance.Value < 100 and math.random() > (HitChance.Value / 100) then continue end
 
-								local delta = (v.RootPart.Position - selfpos)
-								local angle = math.acos(localfacing:Dot((delta * Vector3.new(1, 0, 1)).Unit))
-								if angle > (math.rad(AngleSlider.Value) / 2) then continue end
+									local delta = (v.RootPart.Position - selfpos)
+									local angle = math.acos(localfacing:Dot((delta * Vector3.new(1, 0, 1)).Unit))
+									if angle > (math.rad(AngleSlider.Value) / 2) then continue end
 
-								table.insert(attacked, {
-									Entity = v,
-									Check = delta.Magnitude > AttackRange.Value and BoxSwingColor or BoxAttackColor
-								})
-								targetinfo.Targets[v] = tick() + 1
+									table.insert(attacked, {
+										Entity = v,
+										Check = delta.Magnitude > AttackRange.Value and BoxSwingColor or BoxAttackColor
+									})
+									targetinfo.Targets[v] = tick() + 1
 
-								if not Attacking then
-									Attacking = true
-									store.KillauraTarget = v
-									if not Swing.Enabled and AnimDelay < tick() and not LegitAura.Enabled then
-										AnimDelay = tick() + (meta.sword.respectAttackSpeedForEffects and (meta.sword.attackSpeed or 0.11) or 0.11)
-										pcall(function()
-											bedwars.SwordController:playSwordEffect(meta, false)
-											if meta.displayName and meta.displayName:find(' Scythe') then
-												bedwars.ScytheController:playLocalAnimation()
+									if not Attacking then
+										Attacking = true
+										store.KillauraTarget = v
+										if not Swing.Enabled and AnimDelay < tick() and not LegitAura.Enabled then
+											AnimDelay = tick() + (meta.sword.respectAttackSpeedForEffects and (meta.sword.attackSpeed or 0.11) or 0.11)
+											pcall(function()
+												bedwars.SwordController:playSwordEffect(meta, false)
+												if meta.displayName and meta.displayName:find(' Scythe') then
+													bedwars.ScytheController:playLocalAnimation()
+												end
+											end)
+
+											if vape.ThreadFix then
+												setthreadidentity(8)
 											end
-										end)
-
-										if vape.ThreadFix then
-											setthreadidentity(8)
 										end
 									end
-								end
 
-								if delta.Magnitude > AttackRange.Value then continue end
+									if delta.Magnitude > AttackRange.Value then continue end
 
-								local actualRoot = v.Character and v.Character.PrimaryPart
-								if actualRoot then
-									if FastHits.Enabled and i == 1 then
-										fireProjectileAt(v)
-									end
-									local dir = CFrame.lookAt(selfpos, actualRoot.Position).LookVector
-									local pos = selfpos + dir * math.max(delta.Magnitude - 14.399, 0)
-									bedwars.SwordController.lastAttack = workspace:GetServerTimeNow()
-									store.attackReach = (delta.Magnitude * 100) // 1 / 100
-									store.attackReachUpdate = tick() + 1
+									local actualRoot = v.Character and v.Character.PrimaryPart
+									if actualRoot then
+										if FastHits.Enabled and i == 1 then
+											fireProjectileAt(v)
+										end
+										local dir = CFrame.lookAt(selfpos, actualRoot.Position).LookVector
+										local pos = selfpos + dir * math.max(delta.Magnitude - 14.399, 0)
+										bedwars.SwordController.lastAttack = workspace:GetServerTimeNow()
+										store.attackReach = (delta.Magnitude * 100) // 1 / 100
+										store.attackReachUpdate = tick() + 1
 
-									AttackRemote:FireServer({
-										weapon = sword.tool,
-										chargedAttack = {chargeRatio = 0},
-										entityInstance = v.Character,
-										validate = {
-											raycast = {
-												cameraPosition = {value = pos},
-												cursorDirection = {value = dir}
-											},
-											targetPosition = {value = actualRoot.Position},
-											selfPosition = {value = pos}
-										}
-									})
+										AttackRemote:FireServer({
+											weapon = sword.tool,
+											chargedAttack = {chargeRatio = 0},
+											entityInstance = v.Character,
+											validate = {
+												raycast = {
+													cameraPosition = {value = pos},
+													cursorDirection = {value = dir}
+												},
+												targetPosition = {value = actualRoot.Position},
+												selfPosition = {value = pos}
+											}
+										})
 
-									if AttackSpeed.Value > 0 then
-										task.wait(AttackSpeed.Value)
+										if AttackSpeed.Value > 0 then
+											task.wait(AttackSpeed.Value)
+										end
 									end
 								end
 							end
