@@ -2428,6 +2428,7 @@ run(function()
 		AttackRemote = bedwars.Client:Get(remotes.AttackEntity).instance
 	end)
 
+	local lastAttackTime = 0
 	local function getAttackData()
 		if Mouse.Enabled then
 			if not inputService:IsMouseButtonPressed(0) then return false end
@@ -2570,12 +2571,14 @@ run(function()
 								Sort = safeSort
 							})
 
-							if #plrs > 0 then
+								if #plrs > 0 then
 								switchItem(sword.tool, 0)
 								local selfpos = entitylib.character and entitylib.character.RootPart and entitylib.character.RootPart.Position
 								local localfacing = entitylib.character and entitylib.character.RootPart and (entitylib.character.RootPart.CFrame.LookVector * Vector3.new(1, 0, 1))
 
 								if selfpos and localfacing then
+									local swordSpeed = meta and meta.sword and meta.sword.attackSpeed or 0.11
+									local minDelay = math.max(AttackSpeed.Value, swordSpeed, 0.08)
 									for i, v in pairs(plrs) do
 										if not v.RootPart then continue end
 										if Attackable.Enabled and not v.Targetable then continue end
@@ -2636,9 +2639,8 @@ run(function()
 												}
 											})
 
-											if AttackSpeed.Value > 0 then
-												task.wait(AttackSpeed.Value)
-											end
+											lastAttackTime = os.clock()
+											task.wait(minDelay)
 										end
 									end
 								end
@@ -2680,6 +2682,7 @@ run(function()
 				until not Killaura.Enabled
 			else
 				store.KillauraTarget = nil
+				Attacking = false
 				for _, v in pairs(Boxes) do
 					v.Adornee = nil
 				end
