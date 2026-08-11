@@ -2532,7 +2532,8 @@ run(function()
 							NPCs = Targets.NPCs.Enabled,
 							Limit = MaxTargets.Value,
 							Sort = Sort.Value == 'Distance' and function(a, b)
-								local root = entitylib.character.RootPart
+								local root = entitylib.character and entitylib.character.RootPart
+								if not root then return false end
 								local apos = a.RootPart.Position - root.Position
 								local bpos = b.RootPart.Position - root.Position
 								return apos.Magnitude < bpos.Magnitude
@@ -2541,8 +2542,9 @@ run(function()
 
 						if #plrs > 0 then
 							switchItem(sword.tool, 0)
-							local selfpos = entitylib.character.RootPart.Position
-							local localfacing = entitylib.character.RootPart.CFrame.LookVector * Vector3.new(1, 0, 1)
+							local selfpos = entitylib.character and entitylib.character.RootPart and entitylib.character.RootPart.Position
+							local localfacing = entitylib.character and entitylib.character.RootPart and (entitylib.character.RootPart.CFrame.LookVector * Vector3.new(1, 0, 1))
+							if not selfpos or not localfacing then continue end
 
 							for i, v in pairs(plrs) do
 								if Attackable.Enabled and not v.Targetable then continue end
@@ -2578,7 +2580,7 @@ run(function()
 
 								if delta.Magnitude > AttackRange.Value then continue end
 
-								local actualRoot = v.Character.PrimaryPart
+								local actualRoot = v.Character and v.Character.PrimaryPart
 								if actualRoot then
 									if FastHits.Enabled and i == 1 then
 										fireProjectileAt(v)
