@@ -2577,8 +2577,7 @@ run(function()
 								local localfacing = entitylib.character and entitylib.character.RootPart and (entitylib.character.RootPart.CFrame.LookVector * Vector3.new(1, 0, 1))
 
 								if selfpos and localfacing then
-									local swordSpeed = meta and meta.sword and meta.sword.attackSpeed or 0.11
-									local minDelay = math.max(AttackSpeed.Value, swordSpeed, 0.08)
+									local minDelay = math.max(AttackSpeed.Value, 0.05)
 									for i, v in pairs(plrs) do
 										if not v.RootPart then continue end
 										if Attackable.Enabled and not v.Targetable then continue end
@@ -2678,7 +2677,7 @@ run(function()
 						entitylib.character.RootPart.CFrame = CFrame.lookAt(entitylib.character.RootPart.Position, Vector3.new(vec.X, entitylib.character.RootPart.Position.Y + 0.001, vec.Z))
 					end
 
-					task.wait(#attacked > 0 and #attacked * 0.02 or 1 / UpdateRate.Value)
+					task.wait(1 / UpdateRate.Value)
 				until not Killaura.Enabled
 			else
 				store.KillauraTarget = nil
