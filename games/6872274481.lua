@@ -1986,7 +1986,7 @@ run(function()
 												for _ = 1, 10 do
 													local dpos = roundPos(ray.Position + ray.Normal * 1.5) + Vector3.new(0, 3, 0)
 													if not getPlacedBlock(dpos) then
-														top = Vector3.new(top.X, pos.Y, top.Z)
+														top = Vector3.new(top.X, pos, top.Z)
 														break
 													end
 												end
@@ -2480,24 +2480,7 @@ run(function()
 					end)
 				end
 
-				if Animation.Enabled and not (identifyexecutor and table.find({'Argon', 'Delta'}, ({identifyexecutor()})[1])) then
-					local fake = {
-						Controllers = {
-							ViewmodelController = {
-								isVisible = function()
-									return not Attacking
-								end,
-								playAnimation = function(...)
-									if not Attacking then
-										bedwars.ViewmodelController:playAnimation(select(2, ...))
-									end
-								end
-							}
-						}
-					}
-					debug.setupvalue(oldSwing or bedwars.SwordController.playSwordEffect, 6, fake)
-					pcall(function() debug.setupvalue(bedwars.ScytheController.playLocalAnimation, 3, fake) end)
-
+				if Animation.Enabled then
 					task.spawn(function()
 						local started = false
 						repeat
@@ -2669,8 +2652,6 @@ run(function()
 						lplr.PlayerGui.MobileUI['2'].Visible = true
 					end)
 				end
-				debug.setupvalue(oldSwing or bedwars.SwordController.playSwordEffect, 6, bedwars.Knit)
-				pcall(function() debug.setupvalue(bedwars.ScytheController.playLocalAnimation, 3, bedwars.Knit) end)
 				Attacking = false
 				if armC0 then
 					AnimTween = tweenService:Create(gameCamera.Viewmodel.RightHand.RightWrist, TweenInfo.new(AnimationTween.Enabled and 0.001 or 0.3, Enum.EasingStyle.Exponential), {
