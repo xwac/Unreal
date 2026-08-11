@@ -2383,7 +2383,6 @@ run(function()
 	local UpdateRate
 	local MaxTargets
 	local HitChance
-	local AttackSpeed
 	local Mouse
 	local Swing
 	local GUI
@@ -2428,7 +2427,6 @@ run(function()
 		AttackRemote = bedwars.Client:Get(remotes.AttackEntity).instance
 	end)
 
-	local lastAttackTime = 0
 	local function getAttackData()
 		if Mouse.Enabled then
 			if not inputService:IsMouseButtonPressed(0) then return false end
@@ -2542,20 +2540,10 @@ run(function()
 				end
 
 				repeat
-					local attacked = {}
-					local sword, meta = getAttackData()
+					local attacked, sword, meta = {}, getAttackData()
 					Attacking = false
 					store.KillauraTarget = nil
-					if sword and entitylib.isAlive then
-						local sortFunc = Sort.Value == 'Distance' and function(a, b)
-							local root = entitylib.character and entitylib.character.RootPart
-							if not root then return false end
-							if not a.RootPart then return false end
-							if not b.RootPart then return true end
-							local apos = a.RootPart.Position - root.Position
-							local bpos = b.RootPart.Position - root.Position
-							return apos.Magnitude < bpos.Magnitude
-						end or sortmethods[Sort.Value]
+					if sword then
 						local plrs = entitylib.AllPosition({
 							Range = SwingRange.Value,
 							Wallcheck = Targets.Walls.Enabled or nil,
@@ -2563,17 +2551,24 @@ run(function()
 							Players = Targets.Players.Enabled,
 							NPCs = Targets.NPCs.Enabled,
 							Limit = MaxTargets.Value,
-							Sort = sortFunc
+							Sort = Sort.Value == 'Distance' and function(a, b)
+								local root = entitylib.character and entitylib.character.RootPart
+								if not root then return false end
+								if not a.RootPart then return false end
+								if not b.RootPart then return true end
+								local apos = a.RootPart.Position - root.Position
+								local bpos = b.RootPart.Position - root.Position
+								return apos.Magnitude < bpos.Magnitude
+							end or sortmethods[Sort.Value]
 						})
 
 						if #plrs > 0 then
 							switchItem(sword.tool, 0)
 							local selfpos = entitylib.character and entitylib.character.RootPart and entitylib.character.RootPart.Position
-							local localfacing = entitylib.character and entitylib.character.RootPart and (entitylib.character.RootPart.CFrame.LookVector * Vector3.new(1, 0, 1))
+							local localfacing = selfpos and entitylib.character.RootPart.CFrame.LookVector * Vector3.new(1, 0, 1)
 
 							if selfpos and localfacing then
-								local minDelay = math.max(AttackSpeed.Value, 0.05)
-								for i, v in pairs(plrs) do
+								for _, v in pairs(plrs) do
 									if not v.RootPart then continue end
 									if Attackable.Enabled and not v.Targetable then continue end
 									if HitChance.Value < 100 and math.random() > (HitChance.Value / 100) then continue end
@@ -2593,7 +2588,7 @@ run(function()
 										Attacking = true
 										store.KillauraTarget = v
 										if not Swing.Enabled and AnimDelay < tick() and not LegitAura.Enabled then
-											AnimDelay = tick() + (meta.sword.respectAttackSpeedForEffects and (meta.sword.attackSpeed or 0.11) or 0.11)
+											AnimDelay = tick() + (meta.sword.respectAttackSpeedForEffects and meta.sword.attackSpeed or 0.11)
 											pcall(function()
 												bedwars.SwordController:playSwordEffect(meta, false)
 												if meta.displayName and meta.displayName:find(' Scythe') then
@@ -2611,7 +2606,7 @@ run(function()
 
 									local actualRoot = v.Character and v.Character.PrimaryPart
 									if actualRoot then
-										if FastHits.Enabled and i == 1 then
+										if FastHits.Enabled and #attacked == 1 then
 											fireProjectileAt(v)
 										end
 										local dir = CFrame.lookAt(selfpos, actualRoot.Position).LookVector
@@ -2633,9 +2628,6 @@ run(function()
 												selfPosition = {value = pos}
 											}
 										})
-
-										lastAttackTime = os.clock()
-										task.wait(minDelay)
 									end
 								end
 							end
@@ -2671,7 +2663,7 @@ run(function()
 						entitylib.character.RootPart.CFrame = CFrame.lookAt(entitylib.character.RootPart.Position, Vector3.new(vec.X, entitylib.character.RootPart.Position.Y + 0.001, vec.Z))
 					end
 
-					task.wait(1 / UpdateRate.Value)
+					task.wait(#attacked > 0 and #attacked * 0.02 or 1 / UpdateRate.Value)
 				until not Killaura.Enabled
 			else
 				store.KillauraTarget = nil
@@ -2687,7 +2679,6 @@ run(function()
 						lplr.PlayerGui.MobileUI['2'].Visible = true
 					end)
 				end
-				Attacking = false
 				if armC0 then
 					AnimTween = tweenService:Create(gameCamera.Viewmodel.RightHand.RightWrist, TweenInfo.new(AnimationTween.Enabled and 0.001 or 0.3, Enum.EasingStyle.Exponential), {
 						C0 = armC0
@@ -2755,14 +2746,6 @@ run(function()
 		Max = 100,
 		Default = 100,
 		Suffix = '%'
-	})
-	AttackSpeed = Killaura:CreateSlider({
-		Name = 'Attack speed',
-		Min = 0,
-		Max = 1,
-		Decimal = 100,
-		Default = 0,
-		Suffix = function(val) return val == 1 and 'second' or 'seconds' end
 	})
 	FastHits = Killaura:CreateToggle({
 		Name = 'Fast Hits',
