@@ -258,11 +258,14 @@ end
 local function getPlacedBlock(pos)
 	if not pos then return end
 	local blockPos = bedwars.BlockController:getBlockPosition(pos)
-	return bedwars.BlockController:getStore():getBlockAt(blockPos), blockPos
+	local store = bedwars.BlockController:getStore()
+	return store and store:getBlockAt(blockPos), blockPos
 end
 
 local function getBlocksInPoints(s, e)
-	local blocks, list = bedwars.BlockController:getStore(), {}
+	local store = bedwars.BlockController:getStore()
+	if not store then return {} end
+	local blocks, list = store, {}
 	for x = s.X, e.X do
 		for y = s.Y, e.Y do
 			for z = s.Z, e.Z do
@@ -1054,7 +1057,9 @@ run(function()
 	end
 
 	bedwars.BlockController.isBlockBreakable = function(self, breakTable, plr)
-		local obj = bedwars.BlockController:getStore():getBlockAt(breakTable.blockPosition)
+		local store = bedwars.BlockController:getStore()
+		if not store then return OldBreak(self, breakTable, plr) end
+		local obj = store:getBlockAt(breakTable.blockPosition)
 
 		if obj and obj.Name == 'bed' then
 			for _, plr in playersService:GetPlayers() do
@@ -1071,7 +1076,9 @@ run(function()
 	store.blockPlacer = bedwars.BlockPlacer.new(bedwars.BlockEngine, 'wool_white')
 
 	local function getBlockHealth(block, blockpos)
-		local blockdata = bedwars.BlockController:getStore():getBlockData(blockpos)
+		local store = bedwars.BlockController:getStore()
+		if not store then return block:GetAttribute('Health') end
+		local blockdata = store:getBlockData(blockpos)
 		return (blockdata and (blockdata:GetAttribute('1') or blockdata:GetAttribute('Health')) or block:GetAttribute('Health'))
 	end
 
@@ -1920,7 +1927,9 @@ run(function()
 
 	local function getLowGround()
 		local mag = math.huge
-		for _, pos in bedwars.BlockController:getStore():getAllBlockPositions() do
+		local store = bedwars.BlockController:getStore()
+		if not store then return end
+		for _, pos in store:getAllBlockPositions() do
 			pos = pos * 3
 			if pos.Y < mag and not getPlacedBlock(pos + Vector3.new(0, 3, 0)) then
 				mag = pos.Y
@@ -5181,7 +5190,9 @@ run(function()
 	end
 	
 	local function getPlacedBlocksInPoints(s, e)
-		local list, blocks = {}, bedwars.BlockController:getStore()
+		local store = bedwars.BlockController:getStore()
+		if not store then return {} end
+		local list, blocks = {}, store
 		for x = (e.X > s.X and s.X or e.X), (e.X > s.X and e.X or s.X) do
 			for y = (e.Y > s.Y and s.Y or e.Y), (e.Y > s.Y and e.Y or s.Y) do
 				for z = (e.Z > s.Z and s.Z or e.Z), (e.Z > s.Z and e.Z or s.Z) do
@@ -7997,7 +8008,8 @@ run(function()
 	-- bridges
 	local function getBlockAt(pos)
 		local grid = bedwars.BlockController:getBlockPosition(pos)
-		return bedwars.BlockController:getStore():getBlockAt(grid)
+		local store = bedwars.BlockController:getStore()
+		return store and store:getBlockAt(grid)
 	end
 
 	local function getItem(itemName, inv)
