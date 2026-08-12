@@ -2645,6 +2645,10 @@ function mainapi:CreateGUI()
         return {SetBind = function() end}
     end
 
+    function categoryapi:CreateButton(buttonsettings)
+        return {Object = nil}
+    end
+
     local settingsopen = false
     settingsbutton.MouseButton1Click:Connect(function()
         settingsopen = not settingsopen
