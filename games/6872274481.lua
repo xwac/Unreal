@@ -2374,16 +2374,25 @@ run(function()
 	})
 end)
 run(function()
-	local Killaura
-	local Targets
-	local Sort
-	local SwingRange
-	local AttackRange
-	local AngleSlider
-	local UpdateRate
-	local MaxTargets
-	local HitChance
-	local AttackSpeed
+ 	local Killaura
+ 	local Targets
+ 	local Sort
+ 	local SwingRange
+ 	local AttackRange
+ 	local AngleSlider
+ 	local UpdateRate
+ 	local MaxTargets
+ 	local HitChance
+ 	local SyncHit
+ 	local ChargeTime
+ 	local HR
+ 	local FastHits
+ 	local HitsDelay
+ 	local HRTR = {
+ 		[1] = 0.042,
+ 		[2] = 0.0042,
+ 	}
+  	local LegitAuraToggle
 	local Mouse
 	local Swing
 	local GUI
@@ -2402,9 +2411,8 @@ run(function()
 	local AnimationSpeed
 	local AnimationTween
 	local Limit
-	local LegitAura
-	local FastHits
-	local Projectiles
+ 	local LegitAura
+ 	local Projectiles
 	local LegitSwitch
 	local FireRate
 	local Particles, Boxes = {}, {}
@@ -2540,6 +2548,7 @@ run(function()
 					end)
 				end
 
+				local swingCooldown = 0
 				repeat
 					local attacked, sword, meta = {}, getAttackData()
 					Attacking = false
@@ -2583,13 +2592,13 @@ run(function()
 										Entity = v,
 										Check = delta.Magnitude > AttackRange.Value and BoxSwingColor or BoxAttackColor
 									})
-									targetinfo.Targets[v] = tick() + 1
+									targetinfo.Targets[v] = tick() + 1 - 0.005
 
 									if not Attacking then
 										Attacking = true
 										store.KillauraTarget = v
 										if not Swing.Enabled and AnimDelay < tick() and not LegitAura.Enabled then
-											AnimDelay = tick() + (meta.sword.respectAttackSpeedForEffects and meta.sword.attackSpeed or 0.11)
+											AnimDelay = tick() + (meta.sword.respectAttackSpeedForEffects and meta.sword.attackSpeed or math.max(ChargeTime.Value, 0.11))
 											pcall(function()
 												bedwars.SwordController:playSwordEffect(meta, false)
 												if meta.displayName and meta.displayName:find(' Scythe') then
@@ -2604,6 +2613,7 @@ run(function()
 									end
 
 									if delta.Magnitude > AttackRange.Value then continue end
+									if delta.Magnitude < 14.4 and (tick() - swingCooldown) < math.max(ChargeTime.Value, 0.02) then continue end
 
 									local actualRoot = v.Character and v.Character.PrimaryPart
 									if actualRoot then
@@ -2612,9 +2622,14 @@ run(function()
 										end
 										local dir = CFrame.lookAt(selfpos, actualRoot.Position).LookVector
 										local pos = selfpos + dir * math.max(delta.Magnitude - 14.399, 0)
+										swingCooldown = SyncHit.Enabled and (tick() - HRTR[1]) or tick()
 										bedwars.SwordController.lastAttack = workspace:GetServerTimeNow()
-										store.attackReach = (delta.Magnitude * 100) // 1 / 100
-										store.attackReachUpdate = tick() + 1
+										store.attackReach = SyncHit.Enabled and ((delta.Magnitude * 100) // 1 / 100 - HRTR[1] - 0.055) or (delta.Magnitude * 100) // 1 / 100
+										store.attackReachUpdate = SyncHit.Enabled and (tick() + 1 - HRTR[2]) or tick()
+
+										if delta.Magnitude < 14.4 and ChargeTime.Value > 0.11 then
+											AnimDelay = tick()
+										end
 
 										AttackRemote:FireServer({
 											weapon = sword.tool,
@@ -2629,10 +2644,6 @@ run(function()
 												selfPosition = {value = pos}
 											}
 										})
-
-										if AttackSpeed.Value > 0 then
-											task.wait(AttackSpeed.Value)
-										end
 									end
 								end
 							end
@@ -2668,7 +2679,13 @@ run(function()
 						entitylib.character.RootPart.CFrame = CFrame.lookAt(entitylib.character.RootPart.Position, Vector3.new(vec.X, entitylib.character.RootPart.Position.Y + 0.001, vec.Z))
 					end
 
-					task.wait(#attacked > 0 and #attacked * 0.02 or 1 / UpdateRate.Value)
+					local tme = 0
+					if SyncHit.Enabled then
+						tme = 0.095
+					else
+						tme = -0.195
+					end
+					task.wait(1 / UpdateRate.Value - (tme))
 				until not Killaura.Enabled
 			else
 				store.KillauraTarget = nil
@@ -2684,6 +2701,8 @@ run(function()
 						lplr.PlayerGui.MobileUI['2'].Visible = true
 					end)
 				end
+				debug.setupvalue(oldSwing or bedwars.SwordController.playSwordEffect, 6, bedwars.Knit)
+				debug.setupvalue(bedwars.ScytheController.playLocalAnimation, 3, bedwars.Knit)
 				if armC0 then
 					AnimTween = tweenService:Create(gameCamera.Viewmodel.RightHand.RightWrist, TweenInfo.new(AnimationTween.Enabled and 0.001 or 0.3, Enum.EasingStyle.Exponential), {
 						C0 = armC0
@@ -2752,13 +2771,45 @@ run(function()
 		Default = 100,
 		Suffix = '%'
 	})
-	AttackSpeed = Killaura:CreateSlider({
-		Name = 'Attack delay',
+	ChargeTime = Killaura:CreateSlider({
+		Name = 'Swing time',
 		Min = 0,
 		Max = 1,
-		Decimal = 100,
-		Default = 0.05,
-		Suffix = function(val) return val == 1 and 'second' or 'seconds' end
+		Default = 0.3,
+		Decimal = 100
+	})
+	SyncHit = Killaura:CreateToggle({
+		Name = 'Sync Hit-Time',
+		Default = false,
+		Tooltip = "Synchronize's ur hit time"
+	})
+	HR = Killaura:CreateSlider({
+		Name = 'Hit Registration',
+		Min = 1,
+		Max = 36,
+		Default = 36.5,
+		Function = function(val)
+			local function RegMath(sliderValue)
+				local minValue1 = 0.042
+				local maxValue1 = 0.045
+
+				local minValue2 = 0.0042
+				local maxValue2 = 0.0045
+
+				local steps = 36
+
+				local value1 = minValue1 + ((sliderValue - 1) * ((maxValue1 - minValue1) / steps))
+				local value2 = minValue2 + ((sliderValue - 1) * ((maxValue2 - minValue2) / steps))
+
+				return math.abs(value1), math.abs(value2)
+			end
+
+			if Killaura.Enabled then
+				local v1, v2 = RegMath(val)
+				HRTR[1] = v1
+				HRTR[2] = v2
+			end
+		end
 	})
 	FastHits = Killaura:CreateToggle({
 		Name = 'Fast Hits',
