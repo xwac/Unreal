@@ -2923,7 +2923,25 @@ function mainapi:CreateCategory(categorysettings)
             moduleapi:SetBind({}, true)
         end)
         dotsbutton.MouseButton1Click:Connect(function()
-            modulebutton.MouseButton1Click:Fire()
+            if modulechildren.Visible then
+                modulechildren.Visible = false
+                divider.Visible = false
+                modulebutton.Size = UDim2.new(1, -8, 0, 40)
+            else
+                for _, v in pairs(categoryapi.Buttons) do
+                    if v ~= moduleapi then
+                        v.Children.Visible = false
+                        v.Object.Size = UDim2.new(1, -8, 0, 40)
+                    end
+                end
+                modulechildren.Visible = true
+                divider.Visible = true
+                modulebutton.Size = UDim2.new(1, -8, 0, 40)
+                task.wait()
+                local size = modulechildren.AbsoluteSize.Y
+                modulechildren.Size = UDim2.new(1, 0, 0, size)
+                modulebutton.Size = UDim2.new(1, -8, 0, 40 + size)
+            end
         end)
 
         local toggle = Instance.new('TextButton')
@@ -4485,8 +4503,15 @@ function mainapi:Remove(obj)
 			end
 		end
 
-		loopClean(newobj)
-		tab[obj] = nil
+	loopClean(newobj)
+	tab[obj] = nil
+    end
+end
+
+function mainapi:BlurCheck()
+	if self.ThreadFix then
+		setthreadidentity(8)
+		runService:SetRobloxGuiFocused((clickgui.Visible or guiService:GetErrorType() ~= Enum.ConnectionError.OK) and self.Blur.Enabled)
 	end
 end
 
