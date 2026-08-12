@@ -2672,7 +2672,6 @@ function mainapi:CreateCategory(categorysettings)
         Expanded = false,
         Buttons = {},
         Options = {},
-        Categories = {},
         Name = categorysettings.Name,
         Icon = categorysettings.Icon,
         SidebarButton = nil,
