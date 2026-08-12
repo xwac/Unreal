@@ -2428,9 +2428,8 @@ components = {
 
 -- CUSTOM LAYOUT START
 
-addMaid(mainapi)
-
 function mainapi:CreateGUI()
+    addMaid(mainapi)
     local categoryapi = {
         Type = 'MainWindow',
         Buttons = {},
@@ -2489,7 +2488,7 @@ function mainapi:CreateGUI()
     content.Position = UDim2.fromOffset(200, 0)
     content.BackgroundTransparency = 1
     content.Parent = window
-    content.SelectedCategory = nil
+    content:SetAttribute('SelectedCategory', nil)
 
     local contentTitle = Instance.new('TextLabel')
     contentTitle.Name = 'Title'
@@ -2644,24 +2643,24 @@ function mainapi:CreateCategory(categorysettings)
     categoryapi.ModuleFrame = moduleFrame
 
     sidebarButton.MouseEnter:Connect(function()
-        if mainapi.Windows.GUICategory.Content.SelectedCategory ~= categoryapi then
+        if mainapi.Windows.GUICategory.Content:GetAttribute('SelectedCategory') ~= categoryapi then
             sidebarButton.BackgroundColor3 = color.Light(uipallet.Main, 0.08)
         end
     end)
     sidebarButton.MouseLeave:Connect(function()
-        if mainapi.Windows.GUICategory.Content.SelectedCategory ~= categoryapi then
+        if mainapi.Windows.GUICategory.Content:GetAttribute('SelectedCategory') ~= categoryapi then
             sidebarButton.BackgroundColor3 = color.Light(uipallet.Main, 0.05)
         end
     end)
     sidebarButton.MouseButton1Click:Connect(function()
-        local prev = mainapi.Windows.GUICategory.Content.SelectedCategory
+        local prev = mainapi.Windows.GUICategory.Content:GetAttribute('SelectedCategory')
         if prev then
             prev.SidebarButton.BackgroundColor3 = color.Light(uipallet.Main, 0.05)
             prev.SidebarButton.TextColor3 = color.Dark(uipallet.Text, 0.16)
             prev.ModuleFrame.Visible = false
         end
         categoryapi.Selected = true
-        mainapi.Windows.GUICategory.Content.SelectedCategory = categoryapi
+        mainapi.Windows.GUICategory.Content:SetAttribute('SelectedCategory', categoryapi)
         sidebarButton.BackgroundColor3 = Color3.fromHSV(mainapi.GUIColor.Hue, mainapi.GUIColor.Sat, mainapi.GUIColor.Value)
         sidebarButton.TextColor3 = mainapi:TextColor(mainapi.GUIColor.Hue, mainapi.GUIColor.Sat, mainapi.GUIColor.Value)
         moduleFrame.Visible = true
@@ -2919,7 +2918,7 @@ function mainapi:CreateCategory(categorysettings)
     table.insert(categoryapi.Categories, categoryapi)
     mainapi.Categories[categorysettings.Name] = categoryapi
 
-    if not mainapi.Windows.GUICategory.Content.SelectedCategory then
+    if not mainapi.Windows.GUICategory.Content:GetAttribute('SelectedCategory') then
         sidebarButton.MouseButton1Click:Fire()
     end
 
