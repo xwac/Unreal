@@ -2428,6 +2428,8 @@ components = {
 
 -- CUSTOM LAYOUT START
 
+addMaid(mainapi)
+
 function mainapi:CreateGUI()
     local categoryapi = {
         Type = 'MainWindow',
