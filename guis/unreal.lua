@@ -2582,6 +2582,69 @@ function mainapi:CreateGUI()
     categoryapi.SettingsPane = settingspane
     categoryapi.SettingsChildren = settingschildren
 
+    function categoryapi:CreateDivider(text)
+        local divider = Instance.new('Frame')
+        divider.Name = 'Divider'
+        divider.Size = UDim2.new(1, 0, 0, 1)
+        divider.BackgroundColor3 = color.Light(uipallet.Main, 0.02)
+        divider.BorderSizePixel = 0
+        divider.Parent = contentList
+        if text then
+            local label = Instance.new('TextLabel')
+            label.Name = 'DividerLabel'
+            label.Size = UDim2.fromOffset(218, 27)
+            label.BackgroundTransparency = 1
+            label.Text = '          '..text:upper()
+            label.TextXAlignment = Enum.TextXAlignment.Left
+            label.TextColor3 = color.Dark(uipallet.Text, 0.43)
+            label.TextSize = 9
+            label.FontFace = uipallet.Font
+            label.Parent = contentList
+            divider.Position = UDim2.fromOffset(0, 26)
+            divider.Parent = label
+        end
+    end
+
+    function categoryapi:CreateOverlayBar()
+        local optionapi = {Toggles = {}}
+        return optionapi
+    end
+
+    function categoryapi:CreateSettingsDivider()
+        local divider = Instance.new('Frame')
+        divider.Name = 'Divider'
+        divider.Size = UDim2.new(1, 0, 0, 1)
+        divider.BackgroundColor3 = color.Light(uipallet.Main, 0.02)
+        divider.BorderSizePixel = 0
+        divider.Parent = settingschildren
+    end
+
+    function categoryapi:CreateSettingsPane(panesettings)
+        local pane = Instance.new('ScrollingFrame')
+        pane.Name = panesettings.Name..'Pane'
+        pane.Size = UDim2.new(1, -20, 1, -40)
+        pane.Position = UDim2.fromOffset(10, 38)
+        pane.BackgroundTransparency = 1
+        pane.BorderSizePixel = 0
+        pane.Visible = false
+        pane.ScrollBarThickness = 2
+        pane.ScrollBarImageTransparency = 0.75
+        pane.Parent = settingschildren
+        local list = Instance.new('UIListLayout')
+        list.SortOrder = Enum.SortOrder.LayoutOrder
+        list.Padding = UDim.new(0, 8)
+        list.Parent = pane
+        return {Object = pane, List = list}
+    end
+
+    function categoryapi:CreateGUISlider(options)
+        return {SetValue = function() end}
+    end
+
+    function categoryapi:CreateBind()
+        return {SetBind = function() end}
+    end
+
     local settingsopen = false
     settingsbutton.MouseButton1Click:Connect(function()
         settingsopen = not settingsopen
@@ -2594,6 +2657,7 @@ function mainapi:CreateGUI()
         setclipboard('https://discord.gg/unreal')
     end)
 
+    mainapi.Categories.Main = categoryapi
     mainapi.Windows.GUICategory = window
 end
 
