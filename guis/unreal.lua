@@ -2983,7 +2983,13 @@ function mainapi:CreateCategory(categorysettings)
     mainapi.Categories[categorysettings.Name] = categoryapi
 
     if not mainapi.Windows.GUICategory.Content:GetAttribute('SelectedCategory') then
-        sidebarButton.MouseButton1Click:Fire()
+        categoryapi.Selected = true
+        mainapi.Windows.GUICategory.Content:SetAttribute('SelectedCategory', categoryapi)
+        sidebarButton.BackgroundColor3 = Color3.fromHSV(mainapi.GUIColor.Hue, mainapi.GUIColor.Sat, mainapi.GUIColor.Value)
+        sidebarButton.TextColor3 = mainapi:TextColor(mainapi.GUIColor.Hue, mainapi.GUIColor.Sat, mainapi.GUIColor.Value)
+        moduleFrame.Visible = true
+        mainapi.Windows.GUICategory.Content.Title.Text = categorysettings.Name
+        mainapi.Windows.GUICategory.Content.ContentList.Visible = true
     end
 
     return categoryapi
