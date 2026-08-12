@@ -2707,24 +2707,25 @@ function mainapi:CreateCategory(categorysettings)
     categoryapi.ModuleFrame = moduleFrame
 
     sidebarButton.MouseEnter:Connect(function()
-        if mainapi.Windows.GUICategory.Content:GetAttribute('SelectedCategory') ~= categoryapi then
+        if mainapi.Windows.GUICategory.Content:GetAttribute('SelectedCategory') ~= categorysettings.Name then
             sidebarButton.BackgroundColor3 = color.Light(uipallet.Main, 0.08)
         end
     end)
     sidebarButton.MouseLeave:Connect(function()
-        if mainapi.Windows.GUICategory.Content:GetAttribute('SelectedCategory') ~= categoryapi then
+        if mainapi.Windows.GUICategory.Content:GetAttribute('SelectedCategory') ~= categorysettings.Name then
             sidebarButton.BackgroundColor3 = color.Light(uipallet.Main, 0.05)
         end
     end)
     sidebarButton.MouseButton1Click:Connect(function()
-        local prev = mainapi.Windows.GUICategory.Content:GetAttribute('SelectedCategory')
+        local prevName = mainapi.Windows.GUICategory.Content:GetAttribute('SelectedCategory')
+        local prev = prevName and mainapi.Categories[prevName]
         if prev then
             prev.SidebarButton.BackgroundColor3 = color.Light(uipallet.Main, 0.05)
             prev.SidebarButton.TextColor3 = color.Dark(uipallet.Text, 0.16)
             prev.ModuleFrame.Visible = false
         end
         categoryapi.Selected = true
-        mainapi.Windows.GUICategory.Content:SetAttribute('SelectedCategory', categoryapi)
+        mainapi.Windows.GUICategory.Content:SetAttribute('SelectedCategory', categorysettings.Name)
         sidebarButton.BackgroundColor3 = Color3.fromHSV(mainapi.GUIColor.Hue, mainapi.GUIColor.Sat, mainapi.GUIColor.Value)
         sidebarButton.TextColor3 = mainapi:TextColor(mainapi.GUIColor.Hue, mainapi.GUIColor.Sat, mainapi.GUIColor.Value)
         moduleFrame.Visible = true
@@ -2984,7 +2985,7 @@ function mainapi:CreateCategory(categorysettings)
 
     if not mainapi.Windows.GUICategory.Content:GetAttribute('SelectedCategory') then
         categoryapi.Selected = true
-        mainapi.Windows.GUICategory.Content:SetAttribute('SelectedCategory', categoryapi)
+        mainapi.Windows.GUICategory.Content:SetAttribute('SelectedCategory', categorysettings.Name)
         sidebarButton.BackgroundColor3 = Color3.fromHSV(mainapi.GUIColor.Hue, mainapi.GUIColor.Sat, mainapi.GUIColor.Value)
         sidebarButton.TextColor3 = mainapi:TextColor(mainapi.GUIColor.Hue, mainapi.GUIColor.Sat, mainapi.GUIColor.Value)
         moduleFrame.Visible = true
