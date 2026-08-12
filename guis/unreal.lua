@@ -4511,7 +4511,9 @@ end
 function mainapi:BlurCheck()
 	if self.ThreadFix then
 		setthreadidentity(8)
-		runService:SetRobloxGuiFocused((clickgui.Visible or guiService:GetErrorType() ~= Enum.ConnectionError.OK) and self.Blur.Enabled)
+	end
+	if self.Blur and self.Blur.Enabled then
+		runService:SetRobloxGuiFocused(clickgui.Visible or guiService:GetErrorType() ~= Enum.ConnectionError.OK)
 	end
 end
 
