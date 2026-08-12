@@ -2984,7 +2984,6 @@ function mainapi:CreateCategory(categorysettings)
         return moduleapi
     end
 
-    table.insert(categoryapi.Categories, categoryapi)
     mainapi.Categories[categorysettings.Name] = categoryapi
 
     if not mainapi.Windows.GUICategory.Content:GetAttribute('SelectedCategory') then
