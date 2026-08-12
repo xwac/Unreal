@@ -2429,7 +2429,6 @@ components = {
 -- CUSTOM LAYOUT START
 
 function mainapi:CreateGUI()
-    addMaid(mainapi)
     local categoryapi = {
         Type = 'MainWindow',
         Buttons = {},
@@ -4586,6 +4585,8 @@ scale.Scale = math.max(gui.AbsoluteSize.X / 1920, 0.6)
 scale.Parent = scaledgui
 mainapi.guiscale = scale
 scaledgui.Size = UDim2.fromScale(1 / scale.Scale, 1 / scale.Scale)
+
+addMaid(mainapi)
 
 mainapi:Clean(gui:GetPropertyChangedSignal('AbsoluteSize'):Connect(function()
 	if mainapi.Scale.Enabled then
