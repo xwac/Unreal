@@ -2292,11 +2292,10 @@ run(function()
 	
 	local function getAttackData()
 		if Mouse.Enabled then
-			if not inputService:IsMouseButtonPressed(0) then return false end
+			if not inputService:IsMouseButtonPressed(0) then return nil end
 		end
-	
-		local tool = getTool()
-		return tool and tool:FindFirstChildWhichIsA('TouchTransmitter', true) or nil, tool
+
+		return getTool()
 	end
 	
 	Killaura = vape.Categories.Blatant:CreateModule({
@@ -2304,8 +2303,8 @@ run(function()
 		Function = function(callback)
 			if callback then
 				Killaura:Clean(runService.Heartbeat:Connect(function()
-					local interest, tool = getAttackData()
-					if not interest then return end
+					local tool = getAttackData()
+					if not tool then return end
 
 					local plrs = entitylib.AllPosition({
 						Range = SwingRange.Value,
@@ -2348,8 +2347,8 @@ run(function()
 
 								Overlay.FilterDescendantsInstances = {v.Character}
 								for _, part in workspace:GetPartBoundsInBox(v.RootPart.CFrame, Vector3.new(4, 4, 4), Overlay) do
-									firetouchinterest(interest.Parent, part, 1)
-									firetouchinterest(interest.Parent, part, 0)
+									firetouchinterest(tool, part, 1)
+									firetouchinterest(tool, part, 0)
 								end
 							end
 						end
