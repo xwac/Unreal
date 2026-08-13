@@ -2323,6 +2323,7 @@ run(function()
 					local needVisuals = Face.Enabled or #Boxes > 0 or #Particles > 0
 					local attacked = needVisuals and {}
 
+					local attackTarget
 					for _, v in plrs do
 						local delta = (v.RootPart.Position - selfpos)
 						local deltaFlat = delta * Vector3.new(1, 0, 1)
@@ -2338,11 +2339,11 @@ run(function()
 								end
 
 								if AttackDelay < tick() then
-									AttackDelay = tick() + (1 / cpsValue)
-									tool:Activate()
+									attackTarget = v
 								end
 
 								if Lunge.Enabled and tool.GripUp.X == 0 then break end
+
 								if delta.Magnitude > AttackRange.Value then continue end
 
 								Overlay.FilterDescendantsInstances = {v.Character}
@@ -2352,6 +2353,11 @@ run(function()
 								end
 							end
 						end
+					end
+
+					if attackTarget and AttackDelay < tick() then
+						AttackDelay = tick() + (1 / cpsValue)
+						tool:Activate()
 					end
 
 					if needVisuals then
