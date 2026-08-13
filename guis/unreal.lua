@@ -321,7 +321,7 @@ local function downloadFile(path, func)
 			return game:HttpGet('https://raw.githubusercontent.com/xwac/Unreal/'..readfile('unreal/profiles/commit.txt')..'/'..select(1, path:gsub('unreal/', '')), true)
 		end)
 		if not suc or res == '404: Not Found' then
-			error(res)
+			return nil
 		end
 		if path:find('.lua') then
 			res = '--This watermark is used to delete the file if its cached, remove it to make the file persist after vape updates.\n'..res
@@ -2581,6 +2581,8 @@ function mainapi:CreateGUI()
     categoryapi.ContentTitle = contentTitle
     categoryapi.SettingsPane = settingspane
     categoryapi.SettingsChildren = settingschildren
+    window:SetAttribute('SettingsPane', settingspane)
+    window:SetAttribute('SettingsChildren', settingschildren)
 
     function categoryapi:CreateDivider(text)
         local divider = Instance.new('Frame')
@@ -6308,8 +6310,8 @@ end)
 
 -- Enhanced Settings Panel
 function mainapi:CreateSettingsPanel()
-    local pane = mainapi.Windows.GUICategory.SettingsPane
-    local children = mainapi.Windows.GUICategory.SettingsChildren
+    local pane = mainapi.Windows.GUICategory:GetAttribute('SettingsPane')
+    local children = mainapi.Windows.GUICategory:GetAttribute('SettingsChildren')
     local api = { Options = {} }
 
     local function createOption(name, type, default, list)
@@ -6731,8 +6733,8 @@ function mainapi:CreateThemeCustomizer()
         btn.BackgroundColor3 = colorValues[i]
         btn.BorderSizePixel = 0
         btn.AutoButtonColor = false
-        btn.Text = name;
-        btn.TextColor3 = mainapi:TextColor(0, 0, colorValues[i])
+        local h, s, v = colorValues[i]:ToHSV()
+        btn.TextColor3 = mainapi:TextColor(h, s, v)
         btn.TextSize = 13
         btn.FontFace = uipallet.Font
         btn.Parent = list
@@ -7130,7 +7132,7 @@ function mainapi:CreateKeybindManager()
     list.Parent = manager
     local layout = Instance.new('UIListLayout')
     layout.SortOrder = Enum.SortOrder.LayoutOrder
-    layout.Padding = UDim.New(0, 4)
+    layout.Padding = UDim.new(0, 4)
     layout.Parent = list
     mainapi.Windows.KeybindManager = manager
 end
