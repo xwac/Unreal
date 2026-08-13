@@ -2634,7 +2634,205 @@ function mainapi:CreateGUI()
         list.SortOrder = Enum.SortOrder.LayoutOrder
         list.Padding = UDim.new(0, 8)
         list.Parent = pane
-        return {Object = pane, List = list}
+
+        local paneobj = {Object = pane, List = list}
+
+        function paneobj:CreateToggle(togglesettings)
+            local optionapi = {Enabled = false}
+            local bkg = Instance.new('TextButton')
+            bkg.Name = togglesettings.Name
+            bkg.Size = UDim2.new(1, 0, 0, 36)
+            bkg.BackgroundColor3 = color.Light(uipallet.Main, 0.02)
+            bkg.BorderSizePixel = 0
+            bkg.AutoButtonColor = false
+            bkg.Text = ''
+            bkg.Parent = pane
+            addCorner(bkg, UDim.new(0, 4))
+            local label = Instance.new('TextLabel')
+            label.Name = 'Label'
+            label.Size = UDim2.new(1, -50, 0, 36)
+            label.Position = UDim2.fromOffset(10, 0)
+            label.BackgroundTransparency = 1
+            label.Text = togglesettings.Name
+            label.TextXAlignment = Enum.TextXAlignment.Left
+            label.TextColor3 = uipallet.Text
+            label.TextSize = 13
+            label.FontFace = uipallet.Font
+            label.Parent = bkg
+            local toggle = Instance.new('TextButton')
+            toggle.Name = 'Toggle'
+            toggle.Size = UDim2.fromOffset(30, 16)
+            toggle.Position = UDim2.new(1, -40, 0, 10)
+            toggle.BackgroundColor3 = color.Light(uipallet.Main, 0.14)
+            toggle.BorderSizePixel = 0
+            toggle.AutoButtonColor = false
+            toggle.Parent = bkg
+            addCorner(toggle, UDim.new(1, 0))
+            local knob = Instance.new('Frame')
+            knob.Size = UDim2.fromOffset(12, 12)
+            knob.Position = UDim2.fromOffset(3, 2)
+            knob.BackgroundColor3 = uipallet.Text
+            knob.Parent = toggle
+            addCorner(knob, UDim.new(1, 0))
+            optionapi.Object = bkg
+
+            function optionapi:SetValue(val)
+                self.Enabled = val
+                if val then
+                    knob.Position = UDim2.fromOffset(15, 2)
+                    toggle.BackgroundColor3 = Color3.fromHSV(mainapi.GUIColor.Hue, mainapi.GUIColor.Sat, mainapi.GUIColor.Value)
+                else
+                    knob.Position = UDim2.fromOffset(3, 2)
+                    toggle.BackgroundColor3 = color.Light(uipallet.Main, 0.14)
+                end
+                if togglesettings.Function then togglesettings.Function(val) end
+            end
+
+            toggle.MouseButton1Click:Connect(function()
+                optionapi:SetValue(not optionapi.Enabled)
+            end)
+
+            return optionapi
+        end
+
+        function paneobj:CreateButton(buttonsettings)
+            local button = Instance.new('TextButton')
+            button.Name = buttonsettings.Name
+            button.Size = UDim2.new(1, 0, 0, 36)
+            button.BackgroundColor3 = color.Light(uipallet.Main, 0.02)
+            button.BorderSizePixel = 0
+            button.AutoButtonColor = false
+            button.Text = ''
+            button.Parent = pane
+            addCorner(button, UDim.new(0, 4))
+            local label = Instance.new('TextLabel')
+            label.Name = 'Label'
+            label.Size = UDim2.new(1, -20, 0, 36)
+            label.Position = UDim2.fromOffset(10, 0)
+            label.BackgroundTransparency = 1
+            label.Text = buttonsettings.Name
+            label.TextXAlignment = Enum.TextXAlignment.Left
+            label.TextColor3 = uipallet.Text
+            label.TextSize = 13
+            label.FontFace = uipallet.Font
+            label.Parent = button
+            button.MouseButton1Click:Connect(buttonsettings.Function or function() end)
+            return {Object = button}
+        end
+
+        function paneobj:CreateSlider(slidersettings)
+            local optionapi = {Value = slidersettings.Default or 0}
+            local bkg = Instance.new('TextButton')
+            bkg.Name = slidersettings.Name
+            bkg.Size = UDim2.new(1, 0, 0, 40)
+            bkg.BackgroundColor3 = color.Light(uipallet.Main, 0.02)
+            bkg.BorderSizePixel = 0
+            bkg.AutoButtonColor = false
+            bkg.Text = ''
+            bkg.Parent = pane
+            addCorner(bkg, UDim.new(0, 4))
+            local label = Instance.new('TextLabel')
+            label.Name = 'Label'
+            label.Size = UDim2.new(1, -20, 0, 20)
+            label.Position = UDim2.fromOffset(10, 4)
+            label.BackgroundTransparency = 1
+            label.Text = slidersettings.Name
+            label.TextXAlignment = Enum.TextXAlignment.Left
+            label.TextColor3 = uipallet.Text
+            label.TextSize = 13
+            label.FontFace = uipallet.Font
+            label.Parent = bkg
+            local slider = Instance.new('Frame')
+            slider.Name = 'Slider'
+            slider.Size = UDim2.new(1, -20, 0, 4)
+            slider.Position = UDim2.fromOffset(10, 24)
+            slider.BackgroundColor3 = color.Light(uipallet.Main, 0.14)
+            slider.BorderSizePixel = 0
+            slider.Parent = bkg
+            addCorner(slider, UDim.new(1, 0))
+            local fill = Instance.new('Frame')
+            fill.Name = 'Fill'
+            fill.Size = UDim2.fromScale(optionapi.Value, 1)
+            fill.BackgroundColor3 = Color3.fromHSV(mainapi.GUIColor.Hue, mainapi.GUIColor.Sat, mainapi.GUIColor.Value)
+            fill.BorderSizePixel = 0
+            fill.Parent = slider
+            addCorner(fill, UDim.new(1, 0))
+            optionapi.Object = bkg
+
+            function optionapi:SetValue(val)
+                self.Value = val
+                fill.Size = UDim2.fromScale(val, 1)
+                if slidersettings.Function then slidersettings.Function(val) end
+            end
+
+            slider.InputBegan:Connect(function(inputObj)
+                if inputObj.UserInputType == Enum.UserInputType.MouseButton1 or inputObj.UserInputType == Enum.UserInputType.Touch then
+                    local changed
+                    changed = inputObj.Changed:Connect(function()
+                        if inputObj.UserInputState == Enum.UserInputState.End then
+                            changed:Disconnect()
+                        end
+                    end)
+                    local pos = math.clamp((inputObj.Position.X - slider.AbsolutePosition.X) / slider.AbsoluteSize.X, 0, 1)
+                    optionapi:SetValue(pos)
+                end
+            end)
+
+            return optionapi
+        end
+
+        function paneobj:CreateDropdown(dropdownsettings)
+            local optionapi = {Value = dropdownsettings.Default or '', Options = dropdownsettings.Options or {}}
+            local bkg = Instance.new('TextButton')
+            bkg.Name = dropdownsettings.Name
+            bkg.Size = UDim2.new(1, 0, 0, 36)
+            bkg.BackgroundColor3 = color.Light(uipallet.Main, 0.02)
+            bkg.BorderSizePixel = 0
+            bkg.AutoButtonColor = false
+            bkg.Text = ''
+            bkg.Parent = pane
+            addCorner(bkg, UDim.new(0, 4))
+            local label = Instance.new('TextLabel')
+            label.Name = 'Label'
+            label.Size = UDim2.new(1, -20, 0, 20)
+            label.Position = UDim2.fromOffset(10, 4)
+            label.BackgroundTransparency = 1
+            label.Text = dropdownsettings.Name
+            label.TextXAlignment = Enum.TextXAlignment.Left
+            label.TextColor3 = uipallet.Text
+            label.TextSize = 13
+            label.FontFace = uipallet.Font
+            label.Parent = bkg
+            local valueLabel = Instance.new('TextLabel')
+            valueLabel.Name = 'Value'
+            valueLabel.Size = UDim2.new(1, -30, 0, 16)
+            valueLabel.Position = UDim2.fromOffset(10, 18)
+            valueLabel.BackgroundTransparency = 1
+            valueLabel.Text = optionapi.Value
+            valueLabel.TextXAlignment = Enum.TextXAlignment.Left
+            valueLabel.TextColor3 = color.Dark(uipallet.Text, 0.16)
+            valueLabel.TextSize = 11
+            valueLabel.FontFace = uipallet.Font
+            valueLabel.Parent = bkg
+            optionapi.Object = bkg
+
+            function optionapi:SetValue(val)
+                self.Value = val
+                valueLabel.Text = val
+                if dropdownsettings.Function then dropdownsettings.Function(val) end
+            end
+
+            bkg.MouseButton1Click:Connect(function()
+                local current = optionapi.Value
+                local idx = table.find(optionapi.Options, current) or 1
+                idx = idx % #optionapi.Options + 1
+                optionapi:SetValue(optionapi.Options[idx])
+            end)
+
+            return optionapi
+        end
+
+        return paneobj
     end
 
     function categoryapi:CreateGUISlider(options)
@@ -2663,6 +2861,7 @@ function mainapi:CreateGUI()
 
     mainapi.Categories.Main = categoryapi
     mainapi.Windows.GUICategory = window
+    mainapi.Overlays = {CreateToggle = function() return {Enabled = false} end}
 end
 
 
