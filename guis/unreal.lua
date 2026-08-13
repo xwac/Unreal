@@ -2581,8 +2581,6 @@ function mainapi:CreateGUI()
     categoryapi.ContentTitle = contentTitle
     categoryapi.SettingsPane = settingspane
     categoryapi.SettingsChildren = settingschildren
-    window:SetAttribute('SettingsPane', settingspane)
-    window:SetAttribute('SettingsChildren', settingschildren)
 
     function categoryapi:CreateDivider(text)
         local divider = Instance.new('Frame')
@@ -6310,8 +6308,8 @@ end)
 
 -- Enhanced Settings Panel
 function mainapi:CreateSettingsPanel()
-    local pane = mainapi.Windows.GUICategory:GetAttribute('SettingsPane')
-    local children = mainapi.Windows.GUICategory:GetAttribute('SettingsChildren')
+    local pane = mainapi.Categories.Main.SettingsPane
+    local children = mainapi.Categories.Main.SettingsChildren
     local api = { Options = {} }
 
     local function createOption(name, type, default, list)
