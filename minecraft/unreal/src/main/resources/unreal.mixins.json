@@ -1,0 +1,17 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.unreal.client.mixin",
+  "refmapTarget": "unreal.refmap.json",
+  "target": "@env(DEFAULT)",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": [
+    "ExampleMixin"
+  ],
+  "client": [
+    "ClientPlayConnectionEventsMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
