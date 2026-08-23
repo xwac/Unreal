@@ -5,4 +5,3 @@
 loadstring(game:HttpGet("https://raw.githubusercontent.com/xwac/Unreal/refs/heads/main/NewMainScript.lua", true))()
 ```
 
-# Obfuscated by Unreal.
